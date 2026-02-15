@@ -101,9 +101,16 @@ class TestSecurity:
     """認証・認可モジュールのテスト."""
 
     def test_password_hash_and_verify(self) -> None:
-        hashed = hash_password("test_password123")
-        assert verify_password("test_password123", hashed)
-        assert not verify_password("wrong_password", hashed)
+        from unittest.mock import patch
+
+        with patch("cs_risk_agent.core.security.pwd_context") as mock_ctx:
+            mock_ctx.hash.return_value = "$2b$12$fakehash"
+            mock_ctx.verify.side_effect = lambda p, h: p == "test_password123"
+
+            hashed = hash_password("test_password123")
+            assert hashed == "$2b$12$fakehash"
+            assert verify_password("test_password123", hashed)
+            assert not verify_password("wrong_password", hashed)
 
     def test_create_and_decode_token(self) -> None:
         token = create_access_token("user1", Role.AUDITOR)
