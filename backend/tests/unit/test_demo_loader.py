@@ -75,7 +75,8 @@ class TestLoadCsv:
 
     def test_load_csv_bom(self, tmp_path: Path) -> None:
         """UTF-8 BOM付きCSVが正しく読めること."""
-        csv_content = "\ufeffentity_id,revenue\nSUB-001,100\n"
+        csv_content = "entity_id,revenue\nSUB-001,100\n"
+        # utf-8-sig でBOMを自動付与
         (tmp_path / "test.csv").write_text(csv_content, encoding="utf-8-sig")
         with patch("cs_risk_agent.demo_loader._DEMO_DIR", tmp_path):
             result = _load_csv("test.csv")
