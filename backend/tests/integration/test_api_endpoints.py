@@ -88,33 +88,33 @@ class TestHealthReadiness:
 
 
 # ---------------------------------------------------------------------------
-# 未実装エンドポイント テスト
+# 実装済みエンドポイント テスト
 # ---------------------------------------------------------------------------
 
 
-class TestNotFoundEndpoints:
-    """未実装エンドポイントの検証."""
+class TestImplementedEndpoints:
+    """実装済みエンドポイントの検証."""
 
     @pytest.mark.asyncio
-    async def test_list_companies_not_found(self, client):
-        """未実装の /api/v1/companies が 404 を返すこと.
-
-        companies ルーターがまだ接続されていないため 404 になる。
-        """
-        response = await client.get("/api/v1/companies")
-        assert response.status_code == 404
+    async def test_list_companies(self, client):
+        """/api/v1/companies/ が企業一覧を返すこと."""
+        response = await client.get("/api/v1/companies/")
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data
+        assert "total" in data
 
     @pytest.mark.asyncio
-    async def test_admin_status_not_found(self, client):
-        """未実装の /api/v1/admin/status が 404 を返すこと."""
+    async def test_admin_status(self, client):
+        """/api/v1/admin/status がシステムステータスを返すこと."""
         response = await client.get("/api/v1/admin/status")
-        assert response.status_code == 404
+        assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_admin_budget_not_found(self, client):
-        """未実装の /api/v1/admin/budget が 404 を返すこと."""
+    async def test_admin_budget(self, client):
+        """/api/v1/admin/budget が予算情報を返すこと."""
         response = await client.get("/api/v1/admin/budget")
-        assert response.status_code == 404
+        assert response.status_code == 200
 
 
 # ---------------------------------------------------------------------------
