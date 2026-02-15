@@ -90,7 +90,7 @@ class TestAIInsightsEndpoints:
     @pytest.mark.asyncio
     async def test_chat_generic(self, client: AsyncClient) -> None:
         response = await client.post(
-            "/api/v1/ai-insights/chat",
+            "/api/v1/ai/chat",
             json={"message": "高リスク企業は?"},
         )
         assert response.status_code == 200
@@ -101,7 +101,7 @@ class TestAIInsightsEndpoints:
     @pytest.mark.asyncio
     async def test_chat_with_company_id(self, client: AsyncClient) -> None:
         response = await client.post(
-            "/api/v1/ai-insights/chat",
+            "/api/v1/ai/chat",
             json={"message": "リスク分析して", "company_id": "SUB-0006"},
         )
         assert response.status_code == 200
@@ -116,7 +116,7 @@ class TestAIInsightsEndpoints:
     @pytest.mark.asyncio
     async def test_chat_shanghai_keyword(self, client: AsyncClient) -> None:
         response = await client.post(
-            "/api/v1/ai-insights/chat",
+            "/api/v1/ai/chat",
             json={"message": "上海子会社について教えて"},
         )
         assert response.status_code == 200
@@ -125,7 +125,7 @@ class TestAIInsightsEndpoints:
 
     @pytest.mark.asyncio
     async def test_get_insights(self, client: AsyncClient) -> None:
-        response = await client.get("/api/v1/ai-insights/insights/SUB-0003")
+        response = await client.get("/api/v1/ai/insights/SUB-0003")
         assert response.status_code == 200
         data = response.json()
         assert data["company_id"] == "SUB-0003"
@@ -133,7 +133,7 @@ class TestAIInsightsEndpoints:
 
     @pytest.mark.asyncio
     async def test_get_insights_not_found(self, client: AsyncClient) -> None:
-        response = await client.get("/api/v1/ai-insights/insights/NONEXISTENT")
+        response = await client.get("/api/v1/ai/insights/NONEXISTENT")
         assert response.status_code == 200
         data = response.json()
         assert data["insights"] == []
