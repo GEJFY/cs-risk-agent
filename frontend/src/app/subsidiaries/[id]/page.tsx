@@ -48,7 +48,7 @@ const subsidiaryData = {
   country: 'JPN',
   isListed: true,
   riskScore: 72,
-  riskLevel: 'high' as const,
+  riskLevel: 'high' as 'critical' | 'high' | 'medium' | 'low',
   financials: {
     revenue: 45000,
     operatingIncome: 3200,
