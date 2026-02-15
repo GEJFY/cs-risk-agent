@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-02-15T14:32:37.281851",
+  "scenario": "東洋重工グループ - グローバルコングロマリット連結子会社リスク分析",
+  "parent_company": "東洋重工業株式会社",
+  "total_entities": 16,
+  "subsidiaries": 15,
+  "countries": 10,
+  "segments": 6,
+  "financial_statements": 128,
+  "journal_entries": 1520,
+  "anomaly_entries": 120,
+  "anomaly_rate": "7.9%",
+  "risk_distribution": {
+    "critical": 2,
+    "high": 3,
+    "medium": 3,
+    "low": 7
+  },
+  "alerts": 8
+}

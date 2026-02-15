@@ -1,0 +1,98 @@
+[
+  {
+    "id": "ALT-4032c8c6",
+    "entity_id": "SUB-0006",
+    "entity_name": "东洋精密机械（上海）有限公司",
+    "severity": "critical",
+    "category": "売掛金異常",
+    "title": "【緊急】売掛金が前年比233%増加 - 架空売上の疑い",
+    "description": "上海子会社の売掛金残高が前年同期比233%増加。営業CFはマイナスであり、売上の実在性に重大な疑義。期末月に売上の72%が集中し、特定担当者(chen_w)による仕訳が85%を占める。",
+    "created_at": "2025-12-15T14:30:00+09:00",
+    "is_read": false,
+    "recommended_action": "現地往査の実施、売掛先への残高確認、銀行明細との照合"
+  },
+  {
+    "id": "ALT-8e1658ca",
+    "entity_id": "SUB-0003",
+    "entity_name": "東洋建機リース株式会社",
+    "severity": "critical",
+    "category": "継続企業",
+    "title": "【緊急】債務超過の兆候 - 継続企業の前提に疑義",
+    "description": "建機リース子会社の自己資本比率が-5.2%に低下。営業CFが4四半期連続赤字、長期借入金が前年比+45%。引当金の不自然な戻入（12件）が確認された。",
+    "created_at": "2025-12-15T15:00:00+09:00",
+    "is_read": false,
+    "recommended_action": "経営陣へのヒアリング、事業計画の妥当性検証、減損テスト実施"
+  },
+  {
+    "id": "ALT-2268ea74",
+    "entity_id": "SUB-0008",
+    "entity_name": "Toyo Power Systems Inc.",
+    "severity": "high",
+    "category": "ベンフォード逸脱",
+    "title": "仕訳金額のベンフォード分析で重大な逸脱を検出",
+    "description": "米国子会社の費用仕訳（販売費・管理費・営業外費用）についてベンフォード第1桁テストを実施した結果、MAD=0.025で「非適合」判定。特にjohnson_r担当分の仕訳に規則的なパターンが認められる。",
+    "created_at": "2025-12-14T10:15:00+09:00",
+    "is_read": true,
+    "recommended_action": "担当者ヒアリング、証憑の突合確認、類似パターンの他社横展開"
+  },
+  {
+    "id": "ALT-3456f85c",
+    "entity_id": "SUB-0011",
+    "entity_name": "PT Toyo Manufacturing Indonesia",
+    "severity": "high",
+    "category": "在庫滞留",
+    "title": "棚卸資産回転日数が業界平均の2.8倍に悪化",
+    "description": "インドネシア子会社の棚卸資産回転日数が前年比+85日。休日計上の大口仕入仕訳12件を検出。在庫評価損（推定15億円）の計上漏れの可能性。",
+    "created_at": "2025-12-13T16:45:00+09:00",
+    "is_read": false,
+    "recommended_action": "実地棚卸の前倒し実施、滞留在庫の個別評価、減損見積りの検証"
+  },
+  {
+    "id": "ALT-ea230987",
+    "entity_id": "SUB-0009",
+    "entity_name": "Toyo Automotive GmbH",
+    "severity": "high",
+    "category": "費用異常",
+    "title": "コンサルティング費用が売上高比12%に急増",
+    "description": "ドイツ子会社のEV転換コンサルティング費用が前年比300%増。成果物の具体性が不明で、営業利益率は2年前の半分以下に低下。",
+    "created_at": "2025-12-12T11:30:00+09:00",
+    "is_read": true,
+    "recommended_action": "コンサルティング契約書・成果物の閲覧、発注プロセスの監査"
+  },
+  {
+    "id": "ALT-aa31b1de",
+    "entity_id": "SUB-0007",
+    "entity_name": "东洋新能源科技（深圳）有限公司",
+    "severity": "medium",
+    "category": "利益率低下",
+    "title": "営業利益率が3四半期連続で低下傾向",
+    "description": "深圳子会社の営業利益率が8.2%→5.1%→3.8%と3四半期連続低下。中国太陽光パネル市場の競争激化による価格下落が主因。",
+    "created_at": "2025-12-10T09:00:00+09:00",
+    "is_read": true,
+    "recommended_action": "事業計画の見直し、コスト削減施策の検討"
+  },
+  {
+    "id": "ALT-6b76140c",
+    "entity_id": "SUB-0014",
+    "entity_name": "Toyo Semiconductor India Pvt. Ltd.",
+    "severity": "medium",
+    "category": "品質管理",
+    "title": "製品不良率が社内基準を超過",
+    "description": "インド子会社の製品不良率が2.8%（社内基準: 1.5%）に上昇。品質コスト増加による利益への影響を注視。",
+    "created_at": "2025-12-08T14:20:00+09:00",
+    "is_read": true,
+    "recommended_action": "品質管理プロセスの監査、是正措置計画の確認"
+  },
+  {
+    "id": "ALT-8a363e13",
+    "entity_id": "SUB-0010",
+    "entity_name": "Toyo Defence & Aerospace Ltd.",
+    "severity": "medium",
+    "category": "サプライチェーン",
+    "title": "主要部品の調達リードタイムが50%延長",
+    "description": "英国子会社の主要部品調達リードタイムがブレグジット後の関税・通関手続き影響で50%延長。納期遅延リスクあり。",
+    "created_at": "2025-12-05T10:00:00+09:00",
+    "is_read": true,
+    "recommended_action": "代替調達先の確保、バッファ在庫の検討"
+  }
+]

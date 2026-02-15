@@ -15,11 +15,11 @@ setup-frontend: ## フロントエンドのみセットアップ
 	cd frontend && npm install
 
 # --- Development ---
-dev-backend: ## バックエンド開発サーバー起動
-	cd backend && .venv/Scripts/uvicorn cs_risk_agent.main:app --reload --host 0.0.0.0 --port 8000
+dev-backend: ## バックエンド開発サーバー起動 (port 8005)
+	cd backend && .venv/Scripts/uvicorn cs_risk_agent.main:app --reload --host 0.0.0.0 --port 8005
 
-dev-frontend: ## フロントエンド開発サーバー起動
-	cd frontend && npm run dev
+dev-frontend: ## フロントエンド開発サーバー起動 (port 3005)
+	cd frontend && npx next dev -p 3005
 
 # --- Testing ---
 test: ## 全テスト実行
@@ -68,8 +68,8 @@ clean: ## キャッシュ・ビルド成果物削除
 	rm -rf frontend/.next frontend/out
 
 # --- Demo ---
-demo-data: ## デモデータ生成
-	cd backend && .venv/Scripts/python -m scripts.generate_demo_data
+demo-data: ## デモデータ生成（東洋重工グループ）
+	cd backend && .venv/Scripts/python ../scripts/generate_demo_data.py
 
 demo-failover: ## フェイルオーバーデモ実行
 	cd backend && .venv/Scripts/python -m scripts.demo_failover

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "COM-0001",
+    "edinet_code": "E02345",
+    "securities_code": "7011",
+    "name": "東洋重工業株式会社",
+    "name_en": "Toyo Heavy Industries, Ltd.",
+    "industry_code": "3300",
+    "industry_name": "輸送用機器",
+    "fiscal_year_end": 3,
+    "is_listed": true,
+    "country": "JPN",
+    "segment": "持株",
+    "description": "総合重工メーカー。エネルギー、航空宇宙、産業機械、自動車部品の4事業を展開。"
+  }
+]

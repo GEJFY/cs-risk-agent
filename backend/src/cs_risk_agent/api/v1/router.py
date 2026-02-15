@@ -8,6 +8,7 @@ from cs_risk_agent.api.v1.admin import router as admin_router
 from cs_risk_agent.api.v1.ai_insights import router as ai_insights_router
 from cs_risk_agent.api.v1.analysis import router as analysis_router
 from cs_risk_agent.api.v1.companies import router as companies_router
+from cs_risk_agent.api.v1.financials import router as financials_router
 from cs_risk_agent.api.v1.health import router as health_router
 from cs_risk_agent.api.v1.reports import router as reports_router
 from cs_risk_agent.api.v1.risk_scores import router as risk_scores_router
@@ -54,6 +55,13 @@ api_router.include_router(
     reports_router,
     prefix="/reports",
     tags=["reports"],
+)
+
+# 財務データ
+api_router.include_router(
+    financials_router,
+    prefix="/financials",
+    tags=["financials"],
 )
 
 # 管理機能

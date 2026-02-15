@@ -76,7 +76,7 @@ export function ChatInterface({
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/ai/chat`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8005'}/api/v1/ai/chat`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
