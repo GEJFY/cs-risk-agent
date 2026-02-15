@@ -19,28 +19,53 @@ _DEMO_DIR = Path(__file__).parent.parent.parent.parent / "demo_data"
 
 # 数値変換対象カラム
 _NUMERIC_COLS = {
-    "revenue", "revenue_prior", "cogs", "cogs_prior", "sga", "sga_prior",
-    "operating_income", "net_income", "operating_cash_flow",
-    "total_assets", "total_assets_prior", "current_assets", "current_assets_prior",
-    "ppe", "ppe_prior", "receivables", "receivables_prior",
-    "inventory", "inventory_prior", "depreciation", "depreciation_prior",
-    "total_liabilities", "total_equity",
-    "current_liabilities", "current_liabilities_prior",
-    "long_term_debt", "long_term_debt_prior",
-    "retained_earnings", "ebit",
-    "debit", "credit",
-    "fiscal_year", "fiscal_quarter",
+    "revenue",
+    "revenue_prior",
+    "cogs",
+    "cogs_prior",
+    "sga",
+    "sga_prior",
+    "operating_income",
+    "net_income",
+    "operating_cash_flow",
+    "total_assets",
+    "total_assets_prior",
+    "current_assets",
+    "current_assets_prior",
+    "ppe",
+    "ppe_prior",
+    "receivables",
+    "receivables_prior",
+    "inventory",
+    "inventory_prior",
+    "depreciation",
+    "depreciation_prior",
+    "total_liabilities",
+    "total_equity",
+    "current_liabilities",
+    "current_liabilities_prior",
+    "long_term_debt",
+    "long_term_debt_prior",
+    "retained_earnings",
+    "ebit",
+    "debit",
+    "credit",
+    "fiscal_year",
+    "fiscal_quarter",
 }
 
 
-def _load_json(filename: str) -> list[dict[str, Any]] | dict[str, Any]:
+def _load_json(filename: str) -> list[dict[str, Any]]:
     """JSONファイルを読み込む."""
     path = _DEMO_DIR / filename
     if not path.exists():
         logger.warning("デモデータが見つかりません: %s  (make demo-data で生成してください)", path)
         return []
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    if isinstance(data, list):
+        return data  # type: ignore[no-any-return]
+    return [data]
 
 
 def _load_csv(filename: str) -> list[dict[str, Any]]:
@@ -95,10 +120,10 @@ class DemoData:
         return cls._instance
 
     def _load(self) -> None:
-        self.companies = _load_json("companies.json") or []
-        self.subsidiaries = _load_json("subsidiaries.json") or []
-        self.risk_scores = _load_json("risk_scores.json") or []
-        self.alerts = _load_json("alerts.json") or []
+        self.companies = _load_json("companies.json")
+        self.subsidiaries = _load_json("subsidiaries.json")
+        self.risk_scores = _load_json("risk_scores.json")
+        self.alerts = _load_json("alerts.json")
         self.financial_statements = _load_csv("financial_statements.csv")
         self.journal_entries = _load_csv("journal_entries.csv")
         self._loaded = True
@@ -183,13 +208,11 @@ class DemoData:
     # --- 財務データ関連 ---
 
     def get_financial_statements_by_entity(
-        self, entity_id: str,
+        self,
+        entity_id: str,
     ) -> list[dict[str, Any]]:
-        """エンティティIDで財務諸表を取得（四半期順ソート）."""
-        rows = [
-            fs for fs in self.financial_statements
-            if fs.get("entity_id") == entity_id
-        ]
+        """エンティティIDで財務諸表を取得(四半期順ソート)."""
+        rows = [fs for fs in self.financial_statements if fs.get("entity_id") == entity_id]
         rows.sort(key=lambda x: (x.get("fiscal_year", 0), x.get("fiscal_quarter", 0)))
         return rows
 
@@ -207,11 +230,8 @@ class DemoData:
         return list(latest.values())
 
     def get_trial_balance(self, entity_id: str) -> list[dict[str, Any]]:
-        """エンティティIDの仕訳をTB（勘定科目別集計）に変換."""
-        entries = [
-            je for je in self.journal_entries
-            if je.get("entity_id") == entity_id
-        ]
+        """エンティティIDの仕訳をTB(勘定科目別集計)に変換."""
+        entries = [je for je in self.journal_entries if je.get("entity_id") == entity_id]
         # 勘定科目別に集計
         tb: dict[str, dict[str, Any]] = {}
         for je in entries:
@@ -235,13 +255,12 @@ class DemoData:
         return result
 
     def get_journal_entries_by_entity(
-        self, entity_id: str, anomaly_only: bool = False,
+        self,
+        entity_id: str,
+        anomaly_only: bool = False,
     ) -> list[dict[str, Any]]:
         """エンティティIDの仕訳データ."""
-        entries = [
-            je for je in self.journal_entries
-            if je.get("entity_id") == entity_id
-        ]
+        entries = [je for je in self.journal_entries if je.get("entity_id") == entity_id]
         if anomaly_only:
             entries = [je for je in entries if je.get("is_anomaly")]
         entries.sort(key=lambda x: x.get("date", ""), reverse=True)
@@ -265,36 +284,45 @@ class DemoData:
                 "period": f"{fs.get('fiscal_year')} Q{fs.get('fiscal_quarter')}",
                 # 収益性
                 "gross_margin": round(
-                    (rev - (fs.get("cogs", 0) or 0)) / rev * 100, 1,
+                    (rev - (fs.get("cogs", 0) or 0)) / rev * 100,
+                    1,
                 ),
                 "operating_margin": round(
-                    (fs.get("operating_income", 0) or 0) / rev * 100, 1,
+                    (fs.get("operating_income", 0) or 0) / rev * 100,
+                    1,
                 ),
                 "net_margin": round(
-                    (fs.get("net_income", 0) or 0) / rev * 100, 1,
+                    (fs.get("net_income", 0) or 0) / rev * 100,
+                    1,
                 ),
                 "roe": round(
-                    (fs.get("net_income", 0) or 0) / eq * 100, 1,
+                    (fs.get("net_income", 0) or 0) / eq * 100,
+                    1,
                 ),
                 "roa": round(
-                    (fs.get("net_income", 0) or 0) / ta * 100, 1,
+                    (fs.get("net_income", 0) or 0) / ta * 100,
+                    1,
                 ),
                 # 安全性
                 "current_ratio": round(
-                    (fs.get("current_assets", 0) or 0) / cl, 2,
+                    (fs.get("current_assets", 0) or 0) / cl,
+                    2,
                 ),
                 "debt_equity_ratio": round(tl / eq, 2),
                 # 効率性
                 "asset_turnover": round(rev / ta, 2),
                 "receivables_turnover": round(
-                    rev / max(fs.get("receivables", 0) or 1, 1), 2,
+                    rev / max(fs.get("receivables", 0) or 1, 1),
+                    2,
                 ),
                 "inventory_turnover": round(
-                    (fs.get("cogs", 0) or 0) / max(fs.get("inventory", 0) or 1, 1), 2,
+                    (fs.get("cogs", 0) or 0) / max(fs.get("inventory", 0) or 1, 1),
+                    2,
                 ),
                 # CF
                 "ocf_to_revenue": round(
-                    (fs.get("operating_cash_flow", 0) or 0) / rev * 100, 1,
+                    (fs.get("operating_cash_flow", 0) or 0) / rev * 100,
+                    1,
                 ),
                 # 絶対値
                 "revenue": fs.get("revenue", 0),

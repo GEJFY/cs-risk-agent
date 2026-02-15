@@ -63,9 +63,7 @@ async def generate_report(request: ReportRequest):
                 language=request.language,
             )
             ext = ".pptx"
-            media_type = (
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            )
+            media_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
         else:
             from cs_risk_agent.reports.pdf_generator import generate_risk_report_pdf
 

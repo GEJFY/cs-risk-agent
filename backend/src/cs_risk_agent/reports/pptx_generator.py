@@ -54,14 +54,25 @@ def generate_risk_report_pptx(
     # --- スライド1: タイトル ---
     slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
     _add_text_box(
-        slide, 1, 2.5, 11.3, 1.5,
+        slide,
+        1,
+        2.5,
+        11.3,
+        1.5,
         "Consolidated Subsidiary Risk Analysis Report",
-        font_size=28, bold=True, color=RGBColor(0x1E, 0x29, 0x3B),
+        font_size=28,
+        bold=True,
+        color=RGBColor(0x1E, 0x29, 0x3B),
     )
     _add_text_box(
-        slide, 1, 4.0, 11.3, 0.8,
+        slide,
+        1,
+        4.0,
+        11.3,
+        0.8,
         f"Fiscal Year {fiscal_year} | Generated: {datetime.now().strftime('%Y-%m-%d')}",
-        font_size=14, color=RGBColor(0x64, 0x74, 0x8B),
+        font_size=14,
+        color=RGBColor(0x64, 0x74, 0x8B),
     )
 
     # --- スライド2: エグゼクティブサマリー ---
@@ -88,13 +99,19 @@ def generate_risk_report_pptx(
 
     if risk_scores:
         sorted_scores = sorted(
-            risk_scores, key=lambda x: x.get("total_score", 0), reverse=True,
+            risk_scores,
+            key=lambda x: x.get("total_score", 0),
+            reverse=True,
         )
         rows = min(len(sorted_scores), 15)
         cols = 6
         table_shape = slide.shapes.add_table(
-            rows + 1, cols,
-            Inches(0.5), Inches(1.5), Inches(12.3), Inches(0.4 * (rows + 1)),
+            rows + 1,
+            cols,
+            Inches(0.5),
+            Inches(1.5),
+            Inches(12.3),
+            Inches(0.4 * (rows + 1)),
         )
         table = table_shape.table
 
@@ -103,7 +120,8 @@ def generate_risk_report_pptx(
             cell = table.cell(0, j)
             cell.text = h
             _style_cell(
-                cell, bold=True,
+                cell,
+                bold=True,
                 bg=RGBColor(0x1E, 0x29, 0x3B),
                 fg=RGBColor(0xFF, 0xFF, 0xFF),
             )
@@ -144,8 +162,14 @@ def generate_risk_report_pptx(
         if len(desc) > 120:
             desc = desc[:117] + "..."
         _add_text_box(
-            slide, 1.0, y_pos, 11.5, 0.3, desc,
-            font_size=9, color=RGBColor(0x64, 0x74, 0x8B),
+            slide,
+            1.0,
+            y_pos,
+            11.5,
+            0.3,
+            desc,
+            font_size=9,
+            color=RGBColor(0x64, 0x74, 0x8B),
         )
         y_pos += 0.5
 
@@ -170,10 +194,13 @@ def _add_text_box(
     color: RGBColor | None = None,
 ) -> None:
     """テキストボックスを追加."""
-    txBox = slide.shapes.add_textbox(
-        Inches(left), Inches(top), Inches(width), Inches(height),
+    tx_box = slide.shapes.add_textbox(
+        Inches(left),
+        Inches(top),
+        Inches(width),
+        Inches(height),
     )
-    tf = txBox.text_frame
+    tf = tx_box.text_frame
     tf.word_wrap = True
     p = tf.paragraphs[0]
     p.text = text
@@ -186,8 +213,15 @@ def _add_text_box(
 def _add_title(slide: Any, text: str) -> None:
     """スライドタイトルを追加."""
     _add_text_box(
-        slide, 0.5, 0.3, 12.3, 0.8, text,
-        font_size=22, bold=True, color=RGBColor(0x1E, 0x29, 0x3B),
+        slide,
+        0.5,
+        0.3,
+        12.3,
+        0.8,
+        text,
+        font_size=22,
+        bold=True,
+        color=RGBColor(0x1E, 0x29, 0x3B),
     )
 
 
@@ -204,7 +238,10 @@ def _add_kpi_box(
     """KPIカード風ボックスを追加."""
     shape = slide.shapes.add_shape(
         1,  # rectangle
-        Inches(left), Inches(top), Inches(width), Inches(height),
+        Inches(left),
+        Inches(top),
+        Inches(width),
+        Inches(height),
     )
     shape.fill.solid()
     shape.fill.fore_color.rgb = RGBColor(0xF8, 0xFA, 0xFC)

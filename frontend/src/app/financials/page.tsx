@@ -464,7 +464,8 @@ export default function FinancialsPage() {
                                 { name: '流動資産(他)', value: Math.max(latestTrend.current_assets - latestTrend.receivables - latestTrend.inventory, 0) },
                                 { name: '固定資産', value: Math.max(latestTrend.total_assets - latestTrend.current_assets, 0) },
                               ]}
-                              cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                              dataKey="value"
+                              cx="50%" cy="50%" outerRadius={100} label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
                             >
                               {PIE_COLORS.map((c, i) => <Cell key={i} fill={c} />)}
                             </Pie>
@@ -489,7 +490,8 @@ export default function FinancialsPage() {
                                 { name: '長期借入金', value: latestTrend.long_term_debt },
                                 { name: '純資産', value: latestTrend.total_equity },
                               ]}
-                              cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                              dataKey="value"
+                              cx="50%" cy="50%" outerRadius={100} label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
                             >
                               <Cell fill="#ef4444" />
                               <Cell fill="#f97316" />

@@ -89,10 +89,12 @@ def generate_risk_report_pdf(
 
     # タイトル
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    elements.append(Paragraph(
-        f"Consolidated Subsidiary Risk Analysis Report - FY{fiscal_year}",
-        title_style,
-    ))
+    elements.append(
+        Paragraph(
+            f"Consolidated Subsidiary Risk Analysis Report - FY{fiscal_year}",
+            title_style,
+        )
+    )
     elements.append(Paragraph(f"Generated: {now}", body_style))
     elements.append(Spacer(1, 10 * mm))
 
@@ -101,15 +103,17 @@ def generate_risk_report_pdf(
     total = summary.get("total_companies", 0)
     avg = summary.get("avg_score", 0)
     by_level = summary.get("by_level", {})
-    elements.append(Paragraph(
-        f"Total subsidiaries analyzed: {total}<br/>"
-        f"Average risk score: {avg}<br/>"
-        f"Critical: {by_level.get('critical', 0)} | "
-        f"High: {by_level.get('high', 0)} | "
-        f"Medium: {by_level.get('medium', 0)} | "
-        f"Low: {by_level.get('low', 0)}",
-        body_style,
-    ))
+    elements.append(
+        Paragraph(
+            f"Total subsidiaries analyzed: {total}<br/>"
+            f"Average risk score: {avg}<br/>"
+            f"Critical: {by_level.get('critical', 0)} | "
+            f"High: {by_level.get('high', 0)} | "
+            f"Medium: {by_level.get('medium', 0)} | "
+            f"Low: {by_level.get('low', 0)}",
+            body_style,
+        )
+    )
     elements.append(Spacer(1, 5 * mm))
 
     # リスクスコアテーブル
@@ -120,31 +124,42 @@ def generate_risk_report_pdf(
             name = rs.get("entity_name", "")
             if len(name) > 25:
                 name = name[:22] + "..."
-            table_data.append([
-                name,
-                f"{rs.get('total_score', 0):.1f}",
-                f"{rs.get('da_score', 0):.1f}",
-                f"{rs.get('fraud_score', 0):.1f}",
-                f"{rs.get('rule_score', 0):.1f}",
-                f"{rs.get('benford_score', 0):.1f}",
-                rs.get("risk_level", ""),
-            ])
+            table_data.append(
+                [
+                    name,
+                    f"{rs.get('total_score', 0):.1f}",
+                    f"{rs.get('da_score', 0):.1f}",
+                    f"{rs.get('fraud_score', 0):.1f}",
+                    f"{rs.get('rule_score', 0):.1f}",
+                    f"{rs.get('benford_score', 0):.1f}",
+                    rs.get("risk_level", ""),
+                ]
+            )
 
         table = Table(
             table_data,
             colWidths=[55 * mm, 18 * mm, 16 * mm, 16 * mm, 16 * mm, 18 * mm, 18 * mm],
         )
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e293b")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ]))
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e293b")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [colors.white, colors.HexColor("#f8fafc")],
+                    ),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            )
+        )
         elements.append(table)
     elements.append(Spacer(1, 5 * mm))
 
@@ -154,40 +169,55 @@ def generate_risk_report_pdf(
         for alert in alerts:
             sev = alert.get("severity", "medium")
             color = _RISK_COLORS.get(sev, colors.gray)
-            elements.append(Paragraph(
-                f'<font color="{color.hexval()}">[{sev.upper()}]</font> '
-                f'{alert.get("title", "")}',
-                body_style,
-            ))
-            elements.append(Paragraph(
-                f'&nbsp;&nbsp;&nbsp;{alert.get("description", "")}',
-                ParagraphStyle(
-                    "AlertDesc", parent=body_style, fontSize=8,
-                    textColor=colors.HexColor("#64748b"),
-                ),
-            ))
+            elements.append(
+                Paragraph(
+                    f'<font color="{color.hexval()}">[{sev.upper()}]</font> '
+                    f"{alert.get('title', '')}",
+                    body_style,
+                )
+            )
+            elements.append(
+                Paragraph(
+                    f"&nbsp;&nbsp;&nbsp;{alert.get('description', '')}",
+                    ParagraphStyle(
+                        "AlertDesc",
+                        parent=body_style,
+                        fontSize=8,
+                        textColor=colors.HexColor("#64748b"),
+                    ),
+                )
+            )
             action = alert.get("recommended_action")
             if action:
-                elements.append(Paragraph(
-                    f"&nbsp;&nbsp;&nbsp;Recommended: {action}",
-                    ParagraphStyle(
-                        "AlertAction", parent=body_style, fontSize=8,
-                        textColor=colors.HexColor("#2563eb"),
-                    ),
-                ))
+                elements.append(
+                    Paragraph(
+                        f"&nbsp;&nbsp;&nbsp;Recommended: {action}",
+                        ParagraphStyle(
+                            "AlertAction",
+                            parent=body_style,
+                            fontSize=8,
+                            textColor=colors.HexColor("#2563eb"),
+                        ),
+                    )
+                )
     else:
         elements.append(Paragraph("No alerts found.", body_style))
 
     elements.append(Spacer(1, 10 * mm))
 
     # フッター
-    elements.append(Paragraph(
-        "This report was auto-generated by CS Risk Agent. "
-        "Data accuracy depends on source quality.",
-        ParagraphStyle(
-            "Footer", parent=body_style, fontSize=7, textColor=colors.gray,
-        ),
-    ))
+    elements.append(
+        Paragraph(
+            "This report was auto-generated by CS Risk Agent. "
+            "Data accuracy depends on source quality.",
+            ParagraphStyle(
+                "Footer",
+                parent=body_style,
+                fontSize=7,
+                textColor=colors.gray,
+            ),
+        )
+    )
 
     doc.build(elements)
     pdf_bytes = buffer.getvalue()
