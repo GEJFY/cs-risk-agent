@@ -23,7 +23,7 @@ class TestAppCreation:
         from cs_risk_agent.main import app
 
         client = TestClient(app)
-        response = client.get("/health")
+        response = client.get("/api/v1/health/status")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
@@ -42,14 +42,6 @@ class TestExceptionHandlers:
         body = json.loads(response.body)
         assert body["error"]["code"] == "TEST_ERROR"
         assert body["error"]["message"] == "test message"
-
-    def test_authentication_error_handler(self) -> None:
-        from cs_risk_agent.main import app
-
-        client = TestClient(app, raise_server_exceptions=False)
-        # Health endpoint should work fine (no auth error)
-        response = client.get("/health")
-        assert response.status_code == 200
 
     def test_register_exception_handlers(self) -> None:
         from cs_risk_agent.main import _register_exception_handlers

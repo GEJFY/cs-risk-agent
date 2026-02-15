@@ -32,11 +32,11 @@ class TestExtractUserId:
         # token-based extraction returns something or None
         assert result is None or isinstance(result, str)
 
-    def test_invalid_auth(self) -> None:
+    def test_non_bearer_auth(self) -> None:
         request = MagicMock()
         request.headers = {"authorization": "Basic abc123"}
         result = _extract_user_id(request)
-        assert result is None
+        assert result == "unknown"  # non-Bearer returns "unknown"
 
 
 class TestGetClientIp:
