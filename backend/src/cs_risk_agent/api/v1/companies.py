@@ -6,34 +6,10 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query
 
-from cs_risk_agent.data.schemas import CompanyCreate, CompanyResponse, PaginatedResponse
+from cs_risk_agent.data.schemas import CompanyCreate, PaginatedResponse
+from cs_risk_agent.demo_loader import DemoData
 
 router = APIRouter()
-
-# デモ用インメモリストア
-_demo_companies = [
-    {
-        "id": str(uuid4()),
-        "edinet_code": f"E{10000 + i}",
-        "securities_code": f"{1000 + i * 50}",
-        "name": name,
-        "name_en": None,
-        "industry_code": "3250",
-        "industry_name": "電気機器",
-        "is_listed": True,
-        "country": "JPN",
-        "created_at": "2024-01-01T00:00:00Z",
-    }
-    for i, name in enumerate(
-        [
-            "グローバルテック株式会社",
-            "東京エレクトロニクス株式会社",
-            "大阪製薬株式会社",
-            "未来通信株式会社",
-            "サクラ精密工業株式会社",
-        ]
-    )
-]
 
 
 @router.get("/", response_model=PaginatedResponse)
@@ -41,10 +17,15 @@ async def list_companies(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
 ):
-    """企業一覧取得."""
-    total = len(_demo_companies)
+    """企業一覧取得（親会社 + 子会社）."""
+    demo = DemoData.get()
+    entities = demo.get_subsidiaries_with_risk()
+    # 親会社を先頭に
+    all_entities = demo.companies + entities
+
+    total = len(all_entities)
     start = (page - 1) * per_page
-    items = _demo_companies[start : start + per_page]
+    items = all_entities[start : start + per_page]
     return PaginatedResponse(
         items=items,
         total=total,
@@ -56,11 +37,18 @@ async def list_companies(
 
 @router.get("/{company_id}")
 async def get_company(company_id: str):
-    """企業詳細取得."""
-    for c in _demo_companies:
-        if c["id"] == company_id:
-            return c
-    raise HTTPException(status_code=404, detail="Company not found")
+    """企業・子会社詳細取得."""
+    demo = DemoData.get()
+    entity = demo.get_entity_by_id(company_id)
+    if entity is None:
+        raise HTTPException(status_code=404, detail="Entity not found")
+
+    # リスクスコアを付加
+    rs = demo.get_risk_score_by_entity(company_id)
+    result = {**entity}
+    if rs:
+        result["risk_score"] = rs
+    return result
 
 
 @router.post("/", status_code=201)
@@ -71,5 +59,4 @@ async def create_company(data: CompanyCreate):
         **data.model_dump(),
         "created_at": "2024-01-01T00:00:00Z",
     }
-    _demo_companies.append(company)
     return company

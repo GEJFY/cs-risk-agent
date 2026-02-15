@@ -1,72 +1,29 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import {
   AlertTriangle,
   AlertCircle,
   Info,
   CheckCircle,
   Clock,
+  Loader2,
 } from 'lucide-react'
-import type { Alert, AlertSeverity } from '@/types'
+import type { AlertSeverity } from '@/types'
+import { fetchAPI } from '@/lib/api-client'
 
-/** デモ用アラートデータ */
-const mockAlerts: Alert[] = [
-  {
-    id: '1',
-    companyId: 'c-001',
-    companyName: '東南アジア製造子会社',
-    severity: 'critical',
-    title: '財務報告の重大な遅延',
-    message: '第3四半期の連結パッケージ提出が30日以上遅延しています。',
-    category: '財務報告',
-    isRead: false,
-    createdAt: '2026-02-15T09:00:00Z',
-  },
-  {
-    id: '2',
-    companyId: 'c-002',
-    companyName: '欧州販売子会社',
-    severity: 'high',
-    title: 'コンプライアンス違反の疑い',
-    message: '取引先との契約条件に関するコンプライアンスリスクが検出されました。',
-    category: 'コンプライアンス',
-    isRead: false,
-    createdAt: '2026-02-14T15:30:00Z',
-  },
-  {
-    id: '3',
-    companyId: 'c-003',
-    companyName: '北米IT子会社',
-    severity: 'medium',
-    title: 'IT セキュリティ監査の指摘事項',
-    message: 'アクセス権管理に関する改善勧告が発行されています。',
-    category: 'ITセキュリティ',
-    isRead: true,
-    createdAt: '2026-02-14T10:00:00Z',
-  },
-  {
-    id: '4',
-    companyId: 'c-004',
-    companyName: '中国物流子会社',
-    severity: 'high',
-    title: '為替リスクの増大',
-    message: 'CNY/JPY為替変動により、想定以上の為替差損リスクが発生しています。',
-    category: '財務リスク',
-    isRead: true,
-    createdAt: '2026-02-13T16:45:00Z',
-  },
-  {
-    id: '5',
-    companyId: 'c-005',
-    companyName: 'インド開発子会社',
-    severity: 'low',
-    title: '定期監査完了',
-    message: '年次内部監査が完了し、重大な指摘事項はありませんでした。',
-    category: '内部監査',
-    isRead: true,
-    createdAt: '2026-02-13T09:00:00Z',
-  },
-]
+/** バックエンドアラート型 */
+interface BackendAlert {
+  id: string
+  entity_id: string
+  entity_name: string
+  severity: string
+  title: string
+  description: string
+  category: string
+  is_read: boolean
+  created_at: string
+}
 
 /** 重要度に応じたアイコンとカラー */
 const severityConfig: Record<
@@ -124,6 +81,26 @@ function formatRelativeTime(dateStr: string): string {
  * ダッシュボードにて直近のアラートを重要度アイコン付きで表示
  */
 export function RecentAlerts() {
+  const [alerts, setAlerts] = useState<BackendAlert[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchAPI<{ items: BackendAlert[]; total: number }>('/api/v1/risk-scores/alerts')
+      .then((data) => setAlerts(data.items))
+      .catch((e) => console.error('Failed to fetch alerts:', e))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const unreadCount = alerts.filter((a) => !a.is_read).length
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6 flex items-center justify-center min-h-[200px]">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -135,58 +112,63 @@ export function RecentAlerts() {
             直近の重要通知
           </p>
         </div>
-        <span className="rounded-full bg-risk-critical/10 px-2.5 py-0.5 text-xs font-medium text-risk-critical">
-          {mockAlerts.filter((a) => !a.isRead).length} 未読
-        </span>
+        {unreadCount > 0 && (
+          <span className="rounded-full bg-risk-critical/10 px-2.5 py-0.5 text-xs font-medium text-risk-critical">
+            {unreadCount} 未読
+          </span>
+        )}
       </div>
 
       <div className="space-y-3">
-        {mockAlerts.map((alert) => {
-          const config = severityConfig[alert.severity]
-          const Icon = config.icon
+        {alerts.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">アラートはありません</p>
+        ) : (
+          alerts.map((alert) => {
+            const severity = (alert.severity as AlertSeverity) || 'info'
+            const config = severityConfig[severity] ?? severityConfig.info
+            const Icon = config.icon
 
-          return (
-            <div
-              key={alert.id}
-              className={`
-                flex items-start gap-3 rounded-lg border border-border p-3
-                transition-colors hover:bg-accent/50
-                ${!alert.isRead ? 'bg-accent/30' : ''}
-              `}
-            >
-              {/* 重要度アイコン */}
-              <div className={`mt-0.5 rounded-md ${config.bgClass} p-1.5`}>
-                <Icon className={`h-4 w-4 ${config.colorClass}`} />
-              </div>
+            return (
+              <div
+                key={alert.id}
+                className={`
+                  flex items-start gap-3 rounded-lg border border-border p-3
+                  transition-colors hover:bg-accent/50
+                  ${!alert.is_read ? 'bg-accent/30' : ''}
+                `}
+              >
+                <div className={`mt-0.5 rounded-md ${config.bgClass} p-1.5`}>
+                  <Icon className={`h-4 w-4 ${config.colorClass}`} />
+                </div>
 
-              {/* アラート内容 */}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-card-foreground">
-                    {alert.title}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-card-foreground">
+                      {alert.title}
+                    </p>
+                    {!alert.is_read && (
+                      <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+                    {alert.entity_name} - {alert.description}
                   </p>
-                  {!alert.isRead && (
-                    <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  )}
-                </div>
-                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
-                  {alert.companyName} - {alert.message}
-                </p>
-                <div className="mt-1.5 flex items-center gap-3">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${config.bgClass} ${config.colorClass}`}
-                  >
-                    {config.label}
-                  </span>
-                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {formatRelativeTime(alert.createdAt)}
-                  </span>
+                  <div className="mt-1.5 flex items-center gap-3">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${config.bgClass} ${config.colorClass}`}
+                    >
+                      {config.label}
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {formatRelativeTime(alert.created_at)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
       </div>
     </div>
   )

@@ -9,6 +9,7 @@ import {
   Settings,
   Shield,
   ChevronLeft,
+  BarChart3,
 } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 
@@ -25,6 +26,12 @@ const navItems = [
     label: '企業一覧',
     labelEn: 'Companies',
     icon: Building2,
+  },
+  {
+    href: '/financials',
+    label: '財務分析',
+    labelEn: 'Financials',
+    icon: BarChart3,
   },
   {
     href: '/analysis',

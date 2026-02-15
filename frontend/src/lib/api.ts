@@ -3,7 +3,7 @@
  * バックエンドとの通信を管理
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8005'
 
 /** API リクエストオプション */
 interface RequestOptions {

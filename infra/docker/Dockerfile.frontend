@@ -2,11 +2,14 @@ FROM node:20-alpine AS base
 
 WORKDIR /app
 
-COPY frontend/package.json frontend/pnpm-lock.yaml* ./
-RUN corepack enable && pnpm install --frozen-lockfile 2>/dev/null || npm install
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci --prefer-offline 2>/dev/null || npm install
 
 COPY frontend/ .
 
+# 本番ビルド
+RUN npm run build
+
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+CMD ["npm", "start"]

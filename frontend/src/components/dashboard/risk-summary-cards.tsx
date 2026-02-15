@@ -1,16 +1,14 @@
 'use client'
 
-import { AlertTriangle, AlertCircle, Info, CheckCircle } from 'lucide-react'
-import type { RiskSummary } from '@/types'
+import { useState, useEffect } from 'react'
+import { AlertTriangle, AlertCircle, Info, CheckCircle, Loader2 } from 'lucide-react'
+import { fetchAPI } from '@/lib/api-client'
 
-/** デモ用リスクサマリーデータ */
-const mockRiskSummary: RiskSummary = {
-  critical: 3,
-  high: 7,
-  medium: 12,
-  low: 28,
-  totalCompanies: 50,
-  lastUpdated: '2026-02-15T10:30:00Z',
+/** バックエンド /api/v1/risk-scores/summary レスポンス */
+interface RiskSummaryResponse {
+  total_companies: number
+  by_level: Record<string, number>
+  avg_score: number
 }
 
 /** カード定義 */
@@ -58,13 +56,27 @@ const cardConfigs = [
  * ダッシュボード上部に4つのカードでリスクレベル別の件数を表示
  */
 export function RiskSummaryCards() {
-  const summary = mockRiskSummary
+  const [summary, setSummary] = useState<RiskSummaryResponse | null>(null)
+
+  useEffect(() => {
+    fetchAPI<RiskSummaryResponse>('/api/v1/risk-scores/summary')
+      .then(setSummary)
+      .catch((e) => console.error('Failed to fetch risk summary:', e))
+  }, [])
+
+  if (!summary) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {cardConfigs.map((config) => {
         const Icon = config.icon
-        const count = summary[config.key]
+        const count = summary.by_level[config.key] ?? 0
 
         return (
           <div
@@ -90,7 +102,7 @@ export function RiskSummaryCards() {
               </div>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              全{summary.totalCompanies}社中
+              全{summary.total_companies}社中
             </p>
           </div>
         )
