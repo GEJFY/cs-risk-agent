@@ -23,7 +23,7 @@ class TestAppCreation:
         from cs_risk_agent.main import app
 
         client = TestClient(app)
-        response = client.get("/api/v1/health/status")
+        response = client.get("/api/v1/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
