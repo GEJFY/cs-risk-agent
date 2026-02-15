@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "cs-risk-agent"
 version = "0.1.0"
 description = "Enterprise Multi-Cloud AI Orchestrator for Consolidated Subsidiary Risk Analysis"
-readme = "README.md"
+readme = "../README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
 authors = [
