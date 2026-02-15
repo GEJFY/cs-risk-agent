@@ -1,0 +1,17 @@
+# =============================================================================
+# Dev環境 変数設定 (コピーして terraform.tfvars として使用)
+# =============================================================================
+
+project_name = "csrisk"
+
+# --- 有効化するクラウド ---
+enable_azure = true
+enable_aws   = false
+enable_gcp   = false
+
+# --- Azure ---
+azure_tenant_id   = "your-tenant-id"
+db_admin_password  = "change-me-strong-password"
+
+# --- GCP ---
+gcp_project_id = "your-gcp-project-id"
