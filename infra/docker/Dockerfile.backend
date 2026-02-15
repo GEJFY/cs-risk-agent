@@ -13,7 +13,9 @@ RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache
 COPY backend/src/ src/
 COPY backend/alembic.ini alembic.ini
 COPY backend/alembic/ alembic/
+COPY backend/demo_data/ demo_data/
 
 EXPOSE 8000
 
-CMD ["uvicorn", "cs_risk_agent.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# 本番: --reload なし, ワーカー数は環境変数で制御
+CMD ["uvicorn", "cs_risk_agent.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "info"]

@@ -1,15 +1,66 @@
-"""HTTPミドルウェア定義 - 監査ログ・リクエストトレーシング."""
+"""HTTPミドルウェア定義 - 監査ログ・リクエストトレーシング・レート制限."""
 
 from __future__ import annotations
 
 import time
-from typing import Any
+from collections import defaultdict
 
 import structlog
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import JSONResponse
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# レート制限ミドルウェア
+# ---------------------------------------------------------------------------
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """トークンバケット方式のIPベースレート制限.
+
+    デフォルト: 60リクエスト/分。
+    """
+
+    def __init__(
+        self,
+        app: object,
+        requests_per_minute: int = 60,
+    ) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self.rpm = requests_per_minute
+        self.interval = 60.0 / requests_per_minute
+        self._buckets: dict[str, list[float]] = defaultdict(list)
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        client_ip = _get_client_ip(request)
+        now = time.time()
+        window_start = now - 60.0
+
+        # 古いエントリを削除
+        bucket = self._buckets[client_ip]
+        self._buckets[client_ip] = [t for t in bucket if t > window_start]
+
+        if len(self._buckets[client_ip]) >= self.rpm:
+            logger.warning("rate_limit_exceeded", client_ip=client_ip)
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "error": {
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "message": "Too many requests. Please try again later.",
+                    }
+                },
+                headers={"Retry-After": "60"},
+            )
+
+        self._buckets[client_ip].append(now)
+        response = await call_next(request)
+        response.headers["X-RateLimit-Limit"] = str(self.rpm)
+        response.headers["X-RateLimit-Remaining"] = str(self.rpm - len(self._buckets[client_ip]))
+        return response
 
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
@@ -18,14 +69,12 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
     各リクエストについて以下の情報を structlog で出力する:
     - HTTPメソッド
     - リクエストパス
-    - ユーザー識別子（認証済みの場合）
+    - ユーザー識別子(認証済みの場合)
     - レスポンスステータスコード
-    - 処理時間（ミリ秒）
+    - 処理時間(ミリ秒)
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         """リクエストを処理し監査ログを記録する.
 
         Args:
@@ -37,7 +86,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         """
         start_time = time.perf_counter()
 
-        # ユーザー識別子の抽出（認証ヘッダーがある場合）
+        # ユーザー識別子の抽出(認証ヘッダーがある場合)
         user_id = _extract_user_id(request)
 
         # リクエスト開始ログ
@@ -94,11 +143,11 @@ def _extract_user_id(request: Request) -> str | None:
     if auth_header is None:
         return None
 
-    # Bearer トークンの先頭部分をマスクして返す（ログ安全性確保）
+    # Bearer トークンの先頭部分をマスクして返す(ログ安全性確保)
     parts = auth_header.split(" ", maxsplit=1)
     if len(parts) == 2 and parts[0].lower() == "bearer":
         token = parts[1]
-        # トークンの先頭8文字のみ記録（セキュリティ考慮）
+        # トークンの先頭8文字のみ記録(セキュリティ考慮)
         return f"token:{token[:8]}..." if len(token) > 8 else "token:***"
     return "unknown"
 
@@ -106,7 +155,7 @@ def _extract_user_id(request: Request) -> str | None:
 def _get_client_ip(request: Request) -> str:
     """リクエスト元のクライアントIPアドレスを取得する.
 
-    X-Forwarded-For ヘッダーがあればそちらを優先する（プロキシ対応）。
+    X-Forwarded-For ヘッダーがあればそちらを優先する(プロキシ対応)。
 
     Args:
         request: 受信HTTPリクエスト。

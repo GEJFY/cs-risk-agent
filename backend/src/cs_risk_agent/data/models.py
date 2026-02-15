@@ -5,21 +5,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum as PyEnum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import (
+    JSON,
     Boolean,
-    Column,
     DateTime,
     Enum,
     Float,
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -39,18 +38,18 @@ class TimestampMixin:
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
 
-class RiskLevel(str, PyEnum):
+class RiskLevel(StrEnum):
     """リスクレベル."""
 
     CRITICAL = "critical"
@@ -59,7 +58,7 @@ class RiskLevel(str, PyEnum):
     LOW = "low"
 
 
-class AnalysisStatus(str, PyEnum):
+class AnalysisStatus(StrEnum):
     """分析ステータス."""
 
     PENDING = "pending"
@@ -88,11 +87,11 @@ class Company(Base, TimestampMixin):
     is_listed: Mapped[bool] = mapped_column(Boolean, default=True)
     country: Mapped[str] = mapped_column(String(3), default="JPN")
 
-    subsidiaries: Mapped[list["Subsidiary"]] = relationship(back_populates="parent_company")
-    financial_statements: Mapped[list["FinancialStatement"]] = relationship(
+    subsidiaries: Mapped[list[Subsidiary]] = relationship(back_populates="parent_company")
+    financial_statements: Mapped[list[FinancialStatement]] = relationship(
         back_populates="company"
     )
-    risk_scores: Mapped[list["RiskScore"]] = relationship(back_populates="company")
+    risk_scores: Mapped[list[RiskScore]] = relationship(back_populates="company")
 
 
 class Subsidiary(Base, TimestampMixin):
@@ -114,7 +113,7 @@ class Subsidiary(Base, TimestampMixin):
     segment: Mapped[str | None] = mapped_column(String(100), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    parent_company: Mapped["Company"] = relationship(back_populates="subsidiaries")
+    parent_company: Mapped[Company] = relationship(back_populates="subsidiaries")
 
 
 # --- 財務データ ---
@@ -139,8 +138,8 @@ class FinancialStatement(Base, TimestampMixin):
     filing_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     source: Mapped[str | None] = mapped_column(String(50))  # edinet, excel, manual
 
-    company: Mapped["Company"] = relationship(back_populates="financial_statements")
-    accounts: Mapped[list["Account"]] = relationship(back_populates="financial_statement")
+    company: Mapped[Company] = relationship(back_populates="financial_statements")
+    accounts: Mapped[list[Account]] = relationship(back_populates="financial_statement")
 
 
 class Account(Base, TimestampMixin):
@@ -163,7 +162,7 @@ class Account(Base, TimestampMixin):
     currency: Mapped[str] = mapped_column(String(3), default="JPY")
     taxonomy_element: Mapped[str | None] = mapped_column(String(200))
 
-    financial_statement: Mapped["FinancialStatement"] = relationship(back_populates="accounts")
+    financial_statement: Mapped[FinancialStatement] = relationship(back_populates="accounts")
 
 
 # --- リスク分析結果 ---
@@ -195,8 +194,8 @@ class RiskScore(Base, TimestampMixin):
     component_details: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     risk_factors: Mapped[list[str] | None] = mapped_column(JSON)
 
-    company: Mapped["Company"] = relationship(back_populates="risk_scores")
-    analysis_results: Mapped[list["AnalysisResult"]] = relationship(back_populates="risk_score")
+    company: Mapped[Company] = relationship(back_populates="risk_scores")
+    analysis_results: Mapped[list[AnalysisResult]] = relationship(back_populates="risk_score")
 
 
 class AnalysisResult(Base, TimestampMixin):
@@ -210,7 +209,9 @@ class AnalysisResult(Base, TimestampMixin):
     risk_score_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), ForeignKey("risk_scores.id"), nullable=False, index=True
     )
-    analysis_type: Mapped[str] = mapped_column(String(50), nullable=False)  # da, fraud, rule, benford
+    analysis_type: Mapped[str] = mapped_column(
+        String(50), nullable=False,
+    )  # da, fraud, rule, benford
     status: Mapped[str] = mapped_column(
         Enum(AnalysisStatus, name="analysis_status_enum"), default=AnalysisStatus.PENDING
     )
@@ -218,7 +219,7 @@ class AnalysisResult(Base, TimestampMixin):
     error_message: Mapped[str | None] = mapped_column(Text)
     execution_time_ms: Mapped[int | None] = mapped_column(Integer)
 
-    risk_score: Mapped["RiskScore"] = relationship(back_populates="analysis_results")
+    risk_score: Mapped[RiskScore] = relationship(back_populates="analysis_results")
 
 
 # --- AIインサイト ---
@@ -260,7 +261,7 @@ class AuditLog(Base):
     )
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     user_id: Mapped[str | None] = mapped_column(String(100), index=True)
@@ -275,7 +276,7 @@ class AuditLog(Base):
     status_code: Mapped[int | None] = mapped_column(Integer)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     ip_address: Mapped[str | None] = mapped_column(String(45))
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    log_metadata: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON)
 
 
 # --- ルール定義 ---

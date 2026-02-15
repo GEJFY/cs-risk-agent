@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -12,7 +12,7 @@ from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Environment(str, Enum):
+class Environment(StrEnum):
     """実行環境."""
 
     DEVELOPMENT = "development"
@@ -20,7 +20,7 @@ class Environment(str, Enum):
     PRODUCTION = "production"
 
 
-class AIMode(str, Enum):
+class AIMode(StrEnum):
     """AI実行モード."""
 
     CLOUD = "cloud"
@@ -28,7 +28,7 @@ class AIMode(str, Enum):
     HYBRID = "hybrid"
 
 
-class ModelTier(str, Enum):
+class ModelTier(StrEnum):
     """モデルティア."""
 
     SOTA = "sota"
@@ -184,8 +184,13 @@ class Settings(BaseSettings):
     app_env: Environment = Environment.DEVELOPMENT
     app_debug: bool = True
     app_secret_key: str = "change-me-to-a-random-secret-key"
-    app_host: str = "0.0.0.0"
+    app_host: str = "0.0.0.0"  # noqa: S104
     app_port: int = 8000
+
+    # --- CORS ---
+    cors_origins: list[str] = Field(
+        default=["http://localhost:3005", "http://localhost:3000"],
+    )
 
     # --- Sub Settings ---
     azure: AzureSettings = Field(default_factory=AzureSettings)

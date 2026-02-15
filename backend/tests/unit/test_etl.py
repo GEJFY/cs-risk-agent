@@ -84,12 +84,13 @@ class TestETLPipeline:
     async def test_run_transform_load_validate(self) -> None:
         """transform/load/validate ステップはログ出力のみ."""
         pipeline = ETLPipeline()
-        # _extract をモックして成功させる
-        with patch.object(pipeline, "_extract", new_callable=AsyncMock, return_value=10):
-            result = await pipeline.run("test", {})
-            assert result.status == PipelineStatus.COMPLETED
-            assert result.steps_completed == 4
-            assert result.records_processed == 10
+        # _steps リストの参照を直接差し替える (bound method のため patch.object では不可)
+        mock_extract = AsyncMock(return_value=10)
+        pipeline._steps[0] = ("extract", mock_extract)
+        result = await pipeline.run("test", {})
+        assert result.status == PipelineStatus.COMPLETED
+        assert result.steps_completed == 4
+        assert result.records_processed == 10
 
     @pytest.mark.asyncio
     async def test_run_edinet_source(self) -> None:
@@ -97,7 +98,7 @@ class TestETLPipeline:
         mock_client = MagicMock()
         mock_client.close = AsyncMock()
         with patch(
-            "cs_risk_agent.etl.pipeline.EdinetClient",
+            "cs_risk_agent.etl.edinet_client.EdinetClient",
             return_value=mock_client,
         ):
             # _extract を直接テスト
@@ -115,7 +116,7 @@ class TestETLPipeline:
         mock_loader = MagicMock()
         mock_loader.load.return_value = mock_result
         with patch(
-            "cs_risk_agent.etl.pipeline.ExcelLoader",
+            "cs_risk_agent.etl.excel_loader.ExcelLoader",
             return_value=mock_loader,
         ):
             pr = PipelineResult()
@@ -131,7 +132,7 @@ class TestETLPipeline:
         mock_loader = MagicMock()
         mock_loader.load.return_value = mock_result
         with patch(
-            "cs_risk_agent.etl.pipeline.ExcelLoader",
+            "cs_risk_agent.etl.excel_loader.ExcelLoader",
             return_value=mock_loader,
         ):
             pr = PipelineResult()
@@ -163,16 +164,12 @@ class TestETLPipeline:
     @pytest.mark.asyncio
     async def test_step_failure_stops_pipeline(self) -> None:
         pipeline = ETLPipeline()
-        with patch.object(
-            pipeline,
-            "_extract",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("extract failed"),
-        ):
-            result = await pipeline.run("test", {})
-            assert result.status == PipelineStatus.FAILED
-            assert result.steps_completed == 0
-            assert "extract: extract failed" in result.errors[0]
+        mock_extract = AsyncMock(side_effect=RuntimeError("extract failed"))
+        pipeline._steps[0] = ("extract", mock_extract)
+        result = await pipeline.run("test", {})
+        assert result.status == PipelineStatus.FAILED
+        assert result.steps_completed == 0
+        assert "extract: extract failed" in result.errors[0]
 
 
 # ---------------------------------------------------------------------------

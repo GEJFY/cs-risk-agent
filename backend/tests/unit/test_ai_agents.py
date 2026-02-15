@@ -71,13 +71,13 @@ class TestAnomalyProbe:
 
     def test_init_defaults(self) -> None:
         probe = AnomalyProbe()
-        assert probe.z_threshold == 3.0
-        assert probe.yoy_threshold == 0.50
+        assert probe._z_threshold == 3.0
+        assert probe._yoy_threshold == 0.50
 
     def test_init_custom(self) -> None:
         probe = AnomalyProbe(z_threshold=2.0, yoy_threshold=0.30)
-        assert probe.z_threshold == 2.0
-        assert probe.yoy_threshold == 0.30
+        assert probe._z_threshold == 2.0
+        assert probe._yoy_threshold == 0.30
 
     def test_analyze_normal_data(self) -> None:
         probe = AnomalyProbe()
@@ -93,7 +93,7 @@ class TestAnomalyProbe:
         state = _base_state(data)
         result = probe.analyze(state)
         # YoY変化が閾値を超えるので検出あり
-        yoy_findings = [r for r in result["probe_results"] if r.get("probe_type") == "anomaly"]
+        yoy_findings = [r for r in result["probe_results"] if r.get("probe_name") == "anomaly"]
         assert len(yoy_findings) >= 0  # 検出有無はロジック次第
 
     def test_analyze_empty_data(self) -> None:
@@ -112,13 +112,11 @@ class TestAnomalyProbe:
         assert "name" not in items
 
     def test_classify_yoy_severity(self) -> None:
-        assert AnomalyProbe._classify_yoy_severity(0.8) in (
-            "critical",
-            "high",
-            "medium",
-        )
-        assert AnomalyProbe._classify_yoy_severity(0.3) in ("medium", "low")
-        assert AnomalyProbe._classify_yoy_severity(0.05) == "low"
+        # > 1.0 → "critical", > 0.75 → "high", else → "medium"
+        assert AnomalyProbe._classify_yoy_severity(1.5) == "critical"
+        assert AnomalyProbe._classify_yoy_severity(0.8) == "high"
+        assert AnomalyProbe._classify_yoy_severity(0.3) == "medium"
+        assert AnomalyProbe._classify_yoy_severity(0.05) == "medium"
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +129,7 @@ class TestRatioProbe:
 
     def test_init_defaults(self) -> None:
         probe = RatioProbe()
-        assert len(probe.thresholds) > 0
+        assert len(probe._thresholds) > 0
 
     def test_analyze_normal_data(self) -> None:
         probe = RatioProbe()
@@ -190,9 +188,9 @@ class TestTrendProbe:
 
     def test_init_defaults(self) -> None:
         probe = TrendProbe()
-        assert probe.growth_threshold == 0.30
-        assert probe.break_threshold == 2.0
-        assert probe.min_periods == 3
+        assert probe._growth_threshold == 0.30
+        assert probe._break_threshold == 2.0
+        assert probe._min_periods == 3
 
     def test_analyze_with_prev_data(self) -> None:
         probe = TrendProbe()
@@ -222,10 +220,10 @@ class TestTrendProbe:
         assert rates == []
 
     def test_classify_growth_severity(self) -> None:
-        sev = TrendProbe._classify_growth_severity(0.8)
-        assert sev in ("critical", "high")
-        sev_low = TrendProbe._classify_growth_severity(0.05)
-        assert sev_low == "low"
+        # > 1.0 → "critical", > 0.50 → "high", else → "medium"
+        assert TrendProbe._classify_growth_severity(1.5) == "critical"
+        assert TrendProbe._classify_growth_severity(0.8) == "high"
+        assert TrendProbe._classify_growth_severity(0.05) == "medium"
 
     def test_analyze_empty_data(self) -> None:
         probe = TrendProbe()
@@ -244,9 +242,9 @@ class TestRelationshipProbe:
 
     def test_init_defaults(self) -> None:
         probe = RelationshipProbe()
-        assert probe.revenue_threshold == 0.30
-        assert probe.receivable_threshold == 0.25
-        assert probe.balance_threshold == 0.20
+        assert probe._revenue_threshold == 0.30
+        assert probe._receivable_threshold == 0.25
+        assert probe._balance_threshold == 0.20
 
     def test_analyze_no_related_party_data(self) -> None:
         probe = RelationshipProbe()
@@ -280,8 +278,9 @@ class TestRelationshipProbe:
 
     def test_is_valid_pair(self) -> None:
         assert RelationshipProbe._is_valid_pair(100, 200) is True
-        assert RelationshipProbe._is_valid_pair(0, 200) is False
+        assert RelationshipProbe._is_valid_pair(0, 200) is True  # 0 is valid int
         assert RelationshipProbe._is_valid_pair(None, 200) is False
+        assert RelationshipProbe._is_valid_pair(100, 0) is False  # denominator=0
 
     def test_period_end_anomaly(self) -> None:
         probe = RelationshipProbe()
@@ -308,7 +307,7 @@ class TestCrossReferenceProbe:
         result = probe.analyze(state)
         # 発見なし → no_major_issues
         cross_findings = [
-            r for r in result["probe_results"] if r.get("probe_type") == "cross_reference"
+            r for r in result["probe_results"] if r.get("probe_name") == "cross_reference"
         ]
         assert len(cross_findings) >= 1
         assert cross_findings[0]["severity"] == "low"
@@ -317,11 +316,11 @@ class TestCrossReferenceProbe:
         probe = CrossReferenceProbe()
         state = _base_state()
         state["probe_results"] = [
-            {"probe_type": "anomaly", "severity": "high", "finding": "test1"},
+            {"probe_name": "anomaly", "severity": "high", "finding": "test1"},
         ]
         result = probe.analyze(state)
         cross_findings = [
-            r for r in result["probe_results"] if r.get("probe_type") == "cross_reference"
+            r for r in result["probe_results"] if r.get("probe_name") == "cross_reference"
         ]
         assert len(cross_findings) >= 1
 
@@ -329,13 +328,13 @@ class TestCrossReferenceProbe:
         probe = CrossReferenceProbe()
         state = _base_state()
         state["probe_results"] = [
-            {"probe_type": "anomaly", "severity": "high", "finding": "f1"},
-            {"probe_type": "ratio", "severity": "critical", "finding": "f2"},
-            {"probe_type": "trend", "severity": "high", "finding": "f3"},
+            {"probe_name": "anomaly", "severity": "high", "finding": "f1"},
+            {"probe_name": "ratio", "severity": "critical", "finding": "f2"},
+            {"probe_name": "trend", "severity": "high", "finding": "f3"},
         ]
         result = probe.analyze(state)
         cross_findings = [
-            r for r in result["probe_results"] if r.get("probe_type") == "cross_reference"
+            r for r in result["probe_results"] if r.get("probe_name") == "cross_reference"
         ]
         assert len(cross_findings) >= 1
         assert cross_findings[0]["severity"] == "critical"

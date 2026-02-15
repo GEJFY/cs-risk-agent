@@ -4,6 +4,7 @@ services:
   # --- PostgreSQL ---
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -21,6 +22,7 @@ services:
   # --- Redis ---
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "16380:6379"
     healthcheck:
@@ -34,6 +36,7 @@ services:
     build:
       context: ../../
       dockerfile: infra/docker/Dockerfile.backend
+    restart: unless-stopped
     ports:
       - "8005:8000"
     env_file:
@@ -42,27 +45,32 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/cs_risk_agent
       DATABASE_SYNC_URL: postgresql://postgres:postgres@db:5432/cs_risk_agent
       REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+      APP_DEBUG: "false"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ../../backend/src:/app/src
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   # --- Frontend (Next.js) ---
   frontend:
     build:
       context: ../../
       dockerfile: infra/docker/Dockerfile.frontend
+    restart: unless-stopped
     ports:
       - "3005:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8005
     depends_on:
       - backend
-    volumes:
-      - ../../frontend/src:/app/src
 
 volumes:
   pgdata:
