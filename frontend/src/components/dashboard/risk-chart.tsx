@@ -69,10 +69,7 @@ export function RiskChart() {
                 color: 'hsl(var(--card-foreground))',
                 fontSize: '13px',
               }}
-              formatter={(value: number, _name: string, props: { payload: { label: string } }) => [
-                `${value}社`,
-                props.payload.label,
-              ]}
+              formatter={(value: number) => [`${value}社`, '']}
               labelFormatter={(label: string) => `スコア帯: ${label}`}
             />
             <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={50}>

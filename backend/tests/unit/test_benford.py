@@ -44,13 +44,17 @@ def benford_conforming_data() -> pd.Series:
 
 @pytest.fixture
 def uniform_digit_data() -> pd.Series:
-    """第1桁が均等分布のデータ（非適合を期待）."""
-    np.random.seed(123)
-    n = 500
-    # 各桁が均等に出現するデータ
-    first_digits = np.tile(range(1, 10), n // 9 + 1)[:n]
-    amounts = first_digits * 10 ** np.random.uniform(2, 5, n)
-    return pd.Series(amounts, name="amount")
+    """第1桁が均等分布のデータ（非適合を期待）.
+
+    各桁 1-9 が均等に出現する決定論的データ。
+    first digit が保持されるよう、1xx, 2xx, ..., 9xx の範囲で生成。
+    """
+    amounts = []
+    for digit in range(1, 10):
+        # 各桁60個ずつ = 合計540サンプル
+        for i in range(60):
+            amounts.append(digit * 100 + i)
+    return pd.Series(amounts, dtype=float, name="amount")
 
 
 # ---------------------------------------------------------------------------
