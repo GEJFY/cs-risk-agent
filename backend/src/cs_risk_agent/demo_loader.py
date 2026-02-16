@@ -9,13 +9,29 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# demo_data/ はプロジェクトルート直下
-_DEMO_DIR = Path(__file__).parent.parent.parent.parent / "demo_data"
+# demo_data/ パス解決: 環境変数 > Docker (/app/demo_data) > ローカル (プロジェクトルート)
+# companies.json の存在で実データ有無を判定 (reports/ のみのディレクトリを除外)
+def _resolve_demo_dir() -> Path:
+    """デモデータディレクトリを解決."""
+    if os.environ.get("DEMO_DATA_DIR"):
+        return Path(os.environ["DEMO_DATA_DIR"])
+    candidates = [
+        Path(__file__).parent.parent.parent / "demo_data",       # Docker: /app/demo_data
+        Path(__file__).parent.parent.parent.parent / "demo_data",  # ローカル: project_root/demo_data
+    ]
+    for p in candidates:
+        if (p / "companies.json").exists():
+            return p
+    return candidates[-1]
+
+
+_DEMO_DIR = _resolve_demo_dir()
 
 # 数値変換対象カラム
 _NUMERIC_COLS = {

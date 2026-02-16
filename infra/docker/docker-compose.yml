@@ -42,11 +42,19 @@ services:
     env_file:
       - ../../.env
     environment:
+      # DB/Redis (Docker ネットワーク内)
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/cs_risk_agent
       DATABASE_SYNC_URL: postgresql://postgres:postgres@db:5432/cs_risk_agent
       REDIS_URL: redis://redis:6379/0
+      # アプリケーション
       APP_ENV: production
-      APP_DEBUG: "false"
+      APP_DEBUG: "true"
+      # CORS (ブラウザからのアクセス許可)
+      CORS_ORIGINS: '["http://localhost:3005","http://localhost:3000","http://localhost:8005"]'
+      # マイグレーション自動実行
+      RUN_MIGRATIONS: "true"
+      # デモデータパス (Docker 内)
+      DEMO_DATA_DIR: /app/demo_data
     depends_on:
       db:
         condition: service_healthy
@@ -57,20 +65,23 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 30s
 
   # --- Frontend (Next.js) ---
   frontend:
     build:
       context: ../../
       dockerfile: infra/docker/Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8005
     restart: unless-stopped
     ports:
       - "3005:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8005
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   pgdata:

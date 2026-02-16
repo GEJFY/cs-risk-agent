@@ -7,6 +7,10 @@ RUN npm ci --prefer-offline 2>/dev/null || npm install
 
 COPY frontend/ .
 
+# Next.js はビルド時に NEXT_PUBLIC_* を埋め込む
+ARG NEXT_PUBLIC_API_URL=http://localhost:8005
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # 本番ビルド
 RUN npm run build
 
