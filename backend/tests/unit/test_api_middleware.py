@@ -6,6 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from cs_risk_agent.core.security import Role, create_access_token
+
 # ---------------------------------------------------------------------------
 # Middleware テスト
 # ---------------------------------------------------------------------------
@@ -77,22 +79,13 @@ class TestDeps:
         assert AIModelRouter is not None
         assert get_ai_router is not None
 
-    def test_ai_model_router_init(self) -> None:
+    def test_ai_model_router_class(self) -> None:
         from cs_risk_agent.api.deps import AIModelRouter
 
-        settings = MagicMock()
-        router = AIModelRouter(settings)
-        assert router._settings is settings
+        # AIModelRouter は ai.router.AIModelRouter と同一
+        from cs_risk_agent.ai.router import AIModelRouter as RealRouter
 
-    @pytest.mark.asyncio
-    async def test_ai_model_router_route(self) -> None:
-        from cs_risk_agent.api.deps import AIModelRouter
-
-        settings = MagicMock()
-        router = AIModelRouter(settings)
-        # route() returns a placeholder string
-        result = await router.route("test prompt")
-        assert isinstance(result, str)
+        assert AIModelRouter is RealRouter
 
     @pytest.mark.asyncio
     async def test_get_current_user_no_auth(self) -> None:
@@ -115,26 +108,32 @@ class TestDeps:
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_get_current_user_with_bearer(self) -> None:
+    async def test_get_current_user_with_valid_jwt(self) -> None:
         from cs_risk_agent.api.deps import get_current_user
 
-        result = await get_current_user(authorization="Bearer test.token.here")
+        token = create_access_token(subject="user-1", role=Role.ADMIN)
+        result = await get_current_user(authorization=f"Bearer {token}")
         assert isinstance(result, dict)
-        assert result["sub"] == "placeholder-user-id"
-        assert result["token"] == "test.token.here"
+        assert result["sub"] == "user-1"
+        assert result["role"] == "admin"
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_with_invalid_jwt(self) -> None:
+        from fastapi import HTTPException
+
+        from cs_risk_agent.api.deps import get_current_user
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(authorization="Bearer bogus.jwt.token")
+        assert exc_info.value.status_code == 401
 
     def test_get_ai_router_singleton(self) -> None:
-        import cs_risk_agent.api.deps as deps_mod
-        from cs_risk_agent.api.deps import AIModelRouter
+        from cs_risk_agent.ai import router as router_mod
+        from cs_risk_agent.api.deps import AIModelRouter, get_ai_router
 
-        # Reset singleton
-        deps_mod._ai_router_instance = None
-
-        settings = MagicMock()
-        router1 = deps_mod.get_ai_router(settings)
-        router2 = deps_mod.get_ai_router(settings)
+        router_mod._router = None
+        router1 = get_ai_router()
+        router2 = get_ai_router()
         assert router1 is router2
         assert isinstance(router1, AIModelRouter)
-
-        # Cleanup
-        deps_mod._ai_router_instance = None
+        router_mod._router = None

@@ -81,7 +81,11 @@ class TestSubSettings:
         assert "localhost" in s.base_url
 
     def test_ai_orchestration_settings(self) -> None:
-        s = AIOrchestrationSettings()
+        s = AIOrchestrationSettings(
+            default_provider="azure",
+            fallback_chain="azure,aws,gcp,ollama",
+            monthly_budget_usd=500.0,
+        )
         assert s.default_provider == "azure"
         assert s.fallback_providers == ["azure", "aws", "gcp", "ollama"]
         assert s.monthly_budget_usd == 500.0

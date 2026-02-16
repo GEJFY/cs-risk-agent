@@ -64,3 +64,6 @@ reports_output/
 
 # Word specification (tracked separately)
 *.docx
+
+# Generated reports (test artifacts)
+demo_data/reports/
