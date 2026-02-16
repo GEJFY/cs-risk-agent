@@ -5,8 +5,12 @@ from __future__ import annotations
 from typing import Any, AsyncIterator
 
 from fastapi import Depends, Header, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from cs_risk_agent.config import Settings, get_settings
+from cs_risk_agent.core.exceptions import AuthenticationError
+from cs_risk_agent.core.security import decode_access_token
+from cs_risk_agent.data.database import get_db_session
 
 
 # ---------------------------------------------------------------------------
@@ -14,24 +18,14 @@ from cs_risk_agent.config import Settings, get_settings
 # ---------------------------------------------------------------------------
 
 
-async def get_db() -> AsyncIterator[Any]:
+async def get_db() -> AsyncIterator[AsyncSession]:
     """非同期DBセッションを提供するジェネレータ.
 
-    TODO: SQLAlchemy AsyncSession に置き換える。
-    現在はプレースホルダーとして辞書オブジェクトを返す。
-
     Yields:
-        模擬非同期セッションオブジェクト（後で AsyncSession に差し替え）。
+        SQLAlchemy AsyncSession インスタンス。
     """
-    # TODO: 実装時は以下に差し替え
-    # async with async_session_factory() as session:
-    #     yield session
-    session: dict[str, Any] = {"_placeholder": True}
-    try:
+    async for session in get_db_session():
         yield session
-    finally:
-        # セッションクリーンアップ処理
-        pass
 
 
 # ---------------------------------------------------------------------------
@@ -47,8 +41,6 @@ async def get_current_user(
 
     Authorization ヘッダーの Bearer トークンを検証し、
     ユーザー情報を辞書として返す。
-
-    TODO: 実際の JWT デコード・検証ロジックを実装する。
 
     Args:
         authorization: Authorization ヘッダー値（Bearer <token>）。
@@ -76,72 +68,24 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # TODO: 実際の JWT 検証ロジック
-    # decoded = jwt.decode(
-    #     token,
-    #     settings.jwt.secret_key,
-    #     algorithms=[settings.jwt.algorithm],
-    # )
-    # return decoded
-
-    # プレースホルダー: 固定ユーザーを返す
-    return {
-        "sub": "placeholder-user-id",
-        "email": "dev@example.com",
-        "roles": ["analyst"],
-        "token": token,
-    }
+    try:
+        payload = decode_access_token(token)
+        return {
+            "sub": payload.sub,
+            "role": payload.role.value,
+            "exp": payload.exp.isoformat(),
+            "iat": payload.iat.isoformat(),
+        }
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 # ---------------------------------------------------------------------------
 # AI モデルルーター
 # ---------------------------------------------------------------------------
 
-
-class AIModelRouter:
-    """AIモデルルーティングのプレースホルダー.
-
-    TODO: マルチクラウドプロバイダーへのルーティングロジックを実装する。
-    """
-
-    def __init__(self, settings: Settings) -> None:
-        """AIModelRouter を初期化する.
-
-        Args:
-            settings: アプリケーション設定。
-        """
-        self._settings = settings
-
-    async def route(self, prompt: str, *, tier: str = "cost_effective") -> str:
-        """プロンプトを適切なプロバイダーにルーティングする.
-
-        Args:
-            prompt: LLM に送信するプロンプト。
-            tier: モデルティア（"sota" または "cost_effective"）。
-
-        Returns:
-            LLM からのレスポンステキスト。
-        """
-        # TODO: 実プロバイダーへのルーティング実装
-        return f"[PLACEHOLDER] tier={tier}, prompt_len={len(prompt)}"
-
-
-# シングルトンキャッシュ
-_ai_router_instance: AIModelRouter | None = None
-
-
-def get_ai_router(
-    settings: Settings = Depends(get_settings),
-) -> AIModelRouter:
-    """AIModelRouter のシングルトンインスタンスを返す.
-
-    Args:
-        settings: アプリケーション設定。
-
-    Returns:
-        AIModelRouter インスタンス。
-    """
-    global _ai_router_instance  # noqa: PLW0603
-    if _ai_router_instance is None:
-        _ai_router_instance = AIModelRouter(settings)
-    return _ai_router_instance
+from cs_risk_agent.ai.router import AIModelRouter, get_ai_router  # noqa: E402, F401

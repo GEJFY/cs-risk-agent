@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 from typing import Any
 
 import structlog
 from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
+from sqlalchemy import text
+
+from cs_risk_agent.config import get_settings
+from cs_risk_agent.data.database import get_async_session_factory
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)
 
@@ -77,8 +82,6 @@ async def readiness_check() -> ReadinessResponse:
     全コンポーネントが正常であれば status="ready"、
     一つでも異常があれば status="degraded" を返す。
 
-    TODO: 実際の DB/Redis 接続チェックを実装する。
-
     Returns:
         各コンポーネントの準備状態を含むレスポンス。
     """
@@ -113,21 +116,21 @@ async def readiness_check() -> ReadinessResponse:
 
 
 async def _check_database() -> ReadinessDetail:
-    """データベース接続を確認する.
-
-    TODO: 実際の AsyncSession で SELECT 1 を実行する。
+    """データベース接続を確認する（SELECT 1 実行）.
 
     Returns:
         データベースの準備状態。
     """
     try:
-        # TODO: 実装時は以下に差し替え
-        # async with async_session_factory() as session:
-        #     await session.execute(text("SELECT 1"))
+        factory = get_async_session_factory()
+        start = time.monotonic()
+        async with factory() as session:
+            await session.execute(text("SELECT 1"))
+        latency = (time.monotonic() - start) * 1000
         return ReadinessDetail(
             status="ok",
-            message="placeholder - DB check not yet implemented",
-            latency_ms=0.0,
+            message="connected",
+            latency_ms=round(latency, 2),
         )
     except Exception as exc:
         logger.error("database_health_check_failed", error=str(exc))
@@ -138,21 +141,26 @@ async def _check_database() -> ReadinessDetail:
 
 
 async def _check_redis() -> ReadinessDetail:
-    """Redis 接続を確認する.
-
-    TODO: 実際の Redis クライアントで PING を実行する。
+    """Redis 接続を確認する（PING 実行）.
 
     Returns:
         Redis の準備状態。
     """
     try:
-        # TODO: 実装時は以下に差し替え
-        # redis_client = get_redis()
-        # await redis_client.ping()
+        import redis.asyncio as aioredis
+
+        settings = get_settings()
+        start = time.monotonic()
+        client = aioredis.from_url(settings.redis.url)
+        try:
+            await client.ping()
+        finally:
+            await client.aclose()
+        latency = (time.monotonic() - start) * 1000
         return ReadinessDetail(
             status="ok",
-            message="placeholder - Redis check not yet implemented",
-            latency_ms=0.0,
+            message="connected",
+            latency_ms=round(latency, 2),
         )
     except Exception as exc:
         logger.error("redis_health_check_failed", error=str(exc))

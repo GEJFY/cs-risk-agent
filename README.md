@@ -41,7 +41,7 @@
 
 ```bash
 # 1. クローン
-git clone https://github.com/your-org/cs-risk-agent.git
+git clone https://github.com/GEJFY/cs-risk-agent.git
 cd cs-risk-agent
 
 # 2. 環境変数
@@ -51,8 +51,8 @@ cp .env.example .env
 docker compose -f infra/docker/docker-compose.yml up -d
 
 # 4. アクセス
-# API:       http://localhost:8000/docs
-# Dashboard: http://localhost:3000
+# API:       http://localhost:8005/docs
+# Dashboard: http://localhost:3005
 ```
 
 ## Development

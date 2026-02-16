@@ -384,8 +384,9 @@ class TestAnomalyDetectionPipeline:
         np.random.seed(42)
         amounts = np.random.lognormal(10, 1, 1000)
 
-        # 外れ値を注入
-        amounts = np.append(amounts, [1e10, 1e11, 1e12])
+        # 外れ値を注入（同程度のスケールで複数注入し、マスキング効果を回避）
+        outlier_values = [1e8, 1e8, 1e8]
+        amounts = np.append(amounts, outlier_values)
 
         # Z-score による外れ値検出
         z_scores = (amounts - amounts.mean()) / amounts.std()

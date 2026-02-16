@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from cs_risk_agent.api.deps import AIModelRouter, get_ai_router, get_current_user, get_db
 from cs_risk_agent.config import Settings
+from cs_risk_agent.core.security import Role, create_access_token
 
 # ---------------------------------------------------------------------------
 # get_db テスト
@@ -17,13 +20,17 @@ class TestGetDb:
 
     @pytest.mark.asyncio
     async def test_get_db_yields_session(self) -> None:
-        gen = get_db()
-        session = await gen.__anext__()
-        assert isinstance(session, dict)
-        assert session["_placeholder"] is True
-        # cleanup
-        with pytest.raises(StopAsyncIteration):
-            await gen.__anext__()
+        mock_session = AsyncMock()
+
+        async def _fake_get_db_session():
+            yield mock_session
+
+        with patch("cs_risk_agent.api.deps.get_db_session", _fake_get_db_session):
+            gen = get_db()
+            session = await gen.__anext__()
+            assert session is mock_session
+            with pytest.raises(StopAsyncIteration):
+                await gen.__anext__()
 
 
 # ---------------------------------------------------------------------------
@@ -62,10 +69,23 @@ class TestGetCurrentUser:
 
     @pytest.mark.asyncio
     async def test_valid_bearer_token(self) -> None:
-        user = await get_current_user(authorization="Bearer some-token", settings=Settings())
-        assert user["sub"] == "placeholder-user-id"
-        assert user["token"] == "some-token"
-        assert "roles" in user
+        token = create_access_token(subject="user-123", role=Role.AUDITOR)
+        user = await get_current_user(
+            authorization=f"Bearer {token}", settings=Settings()
+        )
+        assert user["sub"] == "user-123"
+        assert user["role"] == "auditor"
+
+    @pytest.mark.asyncio
+    async def test_invalid_jwt_token(self) -> None:
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(
+                authorization="Bearer invalid-jwt-token", settings=Settings()
+            )
+        assert exc_info.value.status_code == 401
+        assert "Invalid or expired" in exc_info.value.detail
 
 
 # ---------------------------------------------------------------------------
@@ -76,43 +96,14 @@ class TestGetCurrentUser:
 class TestAIModelRouter:
     """AI モデルルーターテスト."""
 
-    def test_init(self) -> None:
-        settings = Settings()
-        router = AIModelRouter(settings)
-        assert router._settings is settings
-
-    @pytest.mark.asyncio
-    async def test_route_default_tier(self) -> None:
-        settings = Settings()
-        router = AIModelRouter(settings)
-        result = await router.route("Hello world")
-        assert "PLACEHOLDER" in result
-        assert "cost_effective" in result
-        assert "prompt_len=11" in result
-
-    @pytest.mark.asyncio
-    async def test_route_sota_tier(self) -> None:
-        settings = Settings()
-        router = AIModelRouter(settings)
-        result = await router.route("Analyze this", tier="sota")
-        assert "sota" in result
+    def test_import_from_deps(self) -> None:
+        assert AIModelRouter is not None
+        assert callable(get_ai_router)
 
     def test_get_ai_router_returns_instance(self) -> None:
-        from cs_risk_agent.api import deps
+        from cs_risk_agent.ai import router as router_module
 
-        # Reset singleton
-        deps._ai_router_instance = None
-        settings = Settings()
-        router = get_ai_router(settings)
+        router_module._router = None
+        router = get_ai_router()
         assert isinstance(router, AIModelRouter)
-
-    def test_get_ai_router_singleton(self) -> None:
-        from cs_risk_agent.api import deps
-
-        deps._ai_router_instance = None
-        settings = Settings()
-        r1 = get_ai_router(settings)
-        r2 = get_ai_router(settings)
-        assert r1 is r2
-        # Cleanup
-        deps._ai_router_instance = None
+        router_module._router = None
