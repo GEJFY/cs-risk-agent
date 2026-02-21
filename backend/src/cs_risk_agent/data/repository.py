@@ -12,7 +12,9 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cs_risk_agent.data.models import (
+    Account,
     AIInsight,
+    Alert,
     AnalysisResult,
     AuditLog,
     Company,
@@ -128,6 +130,13 @@ class RiskScoreRepository:
         )
         return result.scalars().all()
 
+    async def get_all(self) -> Sequence[RiskScore]:
+        """全リスクスコアを取得."""
+        result = await self._session.execute(
+            select(RiskScore).order_by(RiskScore.created_at.desc())
+        )
+        return result.scalars().all()
+
 
 class AuditLogRepository:
     """監査ログリポジトリ."""
@@ -179,3 +188,113 @@ class UserRepository:
         self._session.add(user)
         await self._session.flush()
         return user
+
+
+class SubsidiaryRepository:
+    """子会社リポジトリ."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_by_id(self, subsidiary_id: str) -> Subsidiary | None:
+        result = await self._session.execute(
+            select(Subsidiary).where(Subsidiary.id == subsidiary_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_all(self) -> Sequence[Subsidiary]:
+        result = await self._session.execute(select(Subsidiary))
+        return result.scalars().all()
+
+
+class FinancialStatementRepository:
+    """財務諸表リポジトリ."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_by_entity(
+        self, company_id: str, fiscal_year: int | None = None,
+    ) -> Sequence[FinancialStatement]:
+        query = select(FinancialStatement).where(
+            FinancialStatement.company_id == company_id
+        )
+        if fiscal_year:
+            query = query.where(FinancialStatement.fiscal_year == fiscal_year)
+        query = query.order_by(
+            FinancialStatement.fiscal_year.desc(),
+            FinancialStatement.fiscal_quarter.desc(),
+        )
+        result = await self._session.execute(query)
+        return result.scalars().all()
+
+    async def get_latest(self, company_id: str) -> FinancialStatement | None:
+        result = await self._session.execute(
+            select(FinancialStatement)
+            .where(FinancialStatement.company_id == company_id)
+            .order_by(
+                FinancialStatement.fiscal_year.desc(),
+                FinancialStatement.fiscal_quarter.desc(),
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_all_latest(self) -> Sequence[FinancialStatement]:
+        """全企業の最新財務諸表を取得 (company_id 毎に最新1件)."""
+        # 各企業の最大fiscal_year + fiscal_quarterを持つレコードを取得
+        subq = (
+            select(
+                FinancialStatement.company_id,
+                func.max(FinancialStatement.fiscal_year * 10 + FinancialStatement.fiscal_quarter).label("max_period"),
+            )
+            .group_by(FinancialStatement.company_id)
+            .subquery()
+        )
+        result = await self._session.execute(
+            select(FinancialStatement).join(
+                subq,
+                and_(
+                    FinancialStatement.company_id == subq.c.company_id,
+                    (FinancialStatement.fiscal_year * 10 + FinancialStatement.fiscal_quarter) == subq.c.max_period,
+                ),
+            )
+        )
+        return result.scalars().all()
+
+    async def get_accounts(self, fs_id: str) -> Sequence[Account]:
+        """財務諸表の勘定科目を取得."""
+        result = await self._session.execute(
+            select(Account)
+            .where(Account.financial_statement_id == fs_id)
+            .order_by(Account.account_code)
+        )
+        return result.scalars().all()
+
+
+class AlertRepository:
+    """アラートリポジトリ."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_all(self, severity: str | None = None) -> Sequence[Alert]:
+        query = select(Alert).order_by(Alert.created_at.desc())
+        if severity:
+            query = query.where(Alert.severity == severity)
+        result = await self._session.execute(query)
+        return result.scalars().all()
+
+    async def get_unread(self) -> Sequence[Alert]:
+        result = await self._session.execute(
+            select(Alert)
+            .where(Alert.is_read == False)  # noqa: E712
+            .order_by(Alert.created_at.desc())
+        )
+        return result.scalars().all()
+
+    async def create(self, **kwargs: Any) -> Alert:
+        alert = Alert(id=str(uuid4()), **kwargs)
+        self._session.add(alert)
+        await self._session.flush()
+        return alert

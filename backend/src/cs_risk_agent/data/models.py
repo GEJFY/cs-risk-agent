@@ -92,6 +92,7 @@ class Company(Base, TimestampMixin):
         back_populates="company"
     )
     risk_scores: Mapped[list[RiskScore]] = relationship(back_populates="company")
+    alerts: Mapped[list[Alert]] = relationship(back_populates="company")
 
 
 class Subsidiary(Base, TimestampMixin):
@@ -243,6 +244,33 @@ class AIInsight(Base, TimestampMixin):
     evidence: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     ai_provider: Mapped[str | None] = mapped_column(String(50))
     ai_model: Mapped[str | None] = mapped_column(String(100))
+
+
+# --- アラート ---
+
+class Alert(Base, TimestampMixin):
+    """リスクアラート."""
+
+    __tablename__ = "alerts"
+    __table_args__ = (
+        Index("ix_alert_company", "company_id"),
+        Index("ix_alert_severity", "severity"),
+    )
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+    )
+    company_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("companies.id"), nullable=False
+    )
+    severity: Mapped[str] = mapped_column(String(20), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    recommended_action: Mapped[str | None] = mapped_column(Text)
+
+    company: Mapped[Company] = relationship(back_populates="alerts")
 
 
 # --- 監査ログ ---
