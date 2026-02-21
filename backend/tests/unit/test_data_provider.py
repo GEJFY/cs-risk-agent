@@ -132,42 +132,24 @@ class TestDemoDataProvider:
 
 
 class TestDBDataProvider:
-    """DBDataProvider テスト (スタブ - NotImplementedError)."""
+    """DBDataProvider テスト - 全メソッドが実装済みであること."""
 
-    def test_get_all_entities_raises(self) -> None:
-        provider = DBDataProvider()
-        with pytest.raises(NotImplementedError):
-            provider.get_all_entities()
+    def test_no_not_implemented_error(self) -> None:
+        """NotImplementedErrorが残っていないこと."""
+        import inspect
+        source = inspect.getsource(DBDataProvider)
+        assert "NotImplementedError" not in source
 
-    def test_get_entity_by_id_raises(self) -> None:
-        provider = DBDataProvider()
-        with pytest.raises(NotImplementedError):
-            provider.get_entity_by_id("test")
-
-    def test_get_risk_score_by_entity_raises(self) -> None:
-        provider = DBDataProvider()
-        with pytest.raises(NotImplementedError):
-            provider.get_risk_score_by_entity("test")
-
-    def test_get_subsidiaries_with_risk_raises(self) -> None:
-        provider = DBDataProvider()
-        with pytest.raises(NotImplementedError):
-            provider.get_subsidiaries_with_risk()
-
-    def test_get_risk_summary_raises(self) -> None:
-        provider = DBDataProvider()
-        with pytest.raises(NotImplementedError):
-            provider.get_risk_summary()
-
-    def test_risk_scores_property_raises(self) -> None:
-        provider = DBDataProvider()
-        with pytest.raises(NotImplementedError):
-            _ = provider.risk_scores
-
-    def test_alerts_property_raises(self) -> None:
-        provider = DBDataProvider()
-        with pytest.raises(NotImplementedError):
-            _ = provider.alerts
+    def test_all_abstract_methods_implemented(self) -> None:
+        """全抽象メソッドが実装されていること."""
+        from cs_risk_agent.data.provider import DataProvider
+        abstract_methods = set()
+        for cls in DataProvider.__mro__:
+            for name, method in vars(cls).items():
+                if getattr(method, "__isabstractmethod__", False):
+                    abstract_methods.add(name)
+        for method_name in abstract_methods:
+            assert method_name in dir(DBDataProvider), f"Missing: {method_name}"
 
 
 class TestGetDataProvider:
