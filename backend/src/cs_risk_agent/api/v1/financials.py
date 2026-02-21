@@ -10,7 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, Query
 
-from cs_risk_agent.demo_loader import DemoData
+from cs_risk_agent.data.provider import get_data_provider
 
 router = APIRouter()
 
@@ -24,23 +24,23 @@ async def list_financial_statements(
 
     entity_id指定でエンティティ別、未指定で全エンティティの最新四半期を返す。
     """
-    demo = DemoData.get()
+    provider = get_data_provider()
 
     if entity_id:
-        items = demo.get_financial_statements_by_entity(entity_id)
+        items = provider.get_financial_statements_by_entity(entity_id)
         if fiscal_year:
             items = [fs for fs in items if fs.get("fiscal_year") == fiscal_year]
         return {"entity_id": entity_id, "items": items, "total": len(items)}
     else:
-        items = demo.get_all_financial_latest()
+        items = provider.get_all_financial_latest()
         return {"items": items, "total": len(items)}
 
 
 @router.get("/statements/{entity_id}/trend")
 async def get_financial_trend(entity_id: str) -> dict[str, Any]:
     """財務推移データ(PL/BS/CF主要項目の四半期トレンド)."""
-    demo = DemoData.get()
-    fs_list = demo.get_financial_statements_by_entity(entity_id)
+    provider = get_data_provider()
+    fs_list = provider.get_financial_statements_by_entity(entity_id)
 
     trends = []
     for fs in fs_list:
@@ -68,7 +68,7 @@ async def get_financial_trend(entity_id: str) -> dict[str, Any]:
             }
         )
 
-    entity = demo.get_entity_by_id(entity_id)
+    entity = provider.get_entity_by_id(entity_id)
     return {
         "entity_id": entity_id,
         "entity_name": entity.get("name", "") if entity else "",
@@ -82,9 +82,9 @@ async def get_financial_ratios(entity_id: str) -> dict[str, Any]:
 
     収益性・安全性・効率性・CFの指標をルールエンジンやエージェントの入力に使用可能。
     """
-    demo = DemoData.get()
-    ratios = demo.compute_financial_ratios(entity_id)
-    entity = demo.get_entity_by_id(entity_id)
+    provider = get_data_provider()
+    ratios = provider.compute_financial_ratios(entity_id)
+    entity = provider.get_entity_by_id(entity_id)
     return {
         "entity_id": entity_id,
         "entity_name": entity.get("name", "") if entity else "",
@@ -95,17 +95,17 @@ async def get_financial_ratios(entity_id: str) -> dict[str, Any]:
 @router.get("/ratios")
 async def get_all_financial_ratios() -> dict[str, Any]:
     """全エンティティの最新財務指標一覧(比較分析用)."""
-    demo = DemoData.get()
-    all_entities = demo.get_all_entities()
+    provider = get_data_provider()
+    all_entities = provider.get_all_entities()
     result = []
     for entity in all_entities:
         eid = entity.get("id", "")
-        ratios = demo.compute_financial_ratios(eid)
+        ratios = provider.compute_financial_ratios(eid)
         if ratios:
             latest = ratios[-1]
             latest["entity_name"] = entity.get("name", "")
             # リスクスコアも付加
-            rs = demo.get_risk_score_by_entity(eid)
+            rs = provider.get_risk_score_by_entity(eid)
             if rs:
                 latest["risk_score"] = rs.get("total_score")
                 latest["risk_level"] = rs.get("risk_level")
@@ -119,9 +119,9 @@ async def get_trial_balance(entity_id: str) -> dict[str, Any]:
 
     仕訳データを勘定科目別に集計し、借方・貸方・残高を返す。
     """
-    demo = DemoData.get()
-    tb = demo.get_trial_balance(entity_id)
-    entity = demo.get_entity_by_id(entity_id)
+    provider = get_data_provider()
+    tb = provider.get_trial_balance(entity_id)
+    entity = provider.get_entity_by_id(entity_id)
     return {
         "entity_id": entity_id,
         "entity_name": entity.get("name", "") if entity else "",
@@ -140,8 +140,8 @@ async def get_journal_entries(
 
     anomaly_only=true で異常仕訳のみフィルタ。
     """
-    demo = DemoData.get()
-    entries = demo.get_journal_entries_by_entity(entity_id, anomaly_only=anomaly_only)
+    provider = get_data_provider()
+    entries = provider.get_journal_entries_by_entity(entity_id, anomaly_only=anomaly_only)
     total = len(entries)
     entries = entries[:limit]
     return {
@@ -158,9 +158,9 @@ async def get_balance_sheet(entity_id: str) -> dict[str, Any]:
 
     資産・負債・純資産の内訳と推移をチャート描画用に整形。
     """
-    demo = DemoData.get()
-    fs_list = demo.get_financial_statements_by_entity(entity_id)
-    entity = demo.get_entity_by_id(entity_id)
+    provider = get_data_provider()
+    fs_list = provider.get_financial_statements_by_entity(entity_id)
+    entity = provider.get_entity_by_id(entity_id)
 
     bs_trend = []
     for fs in fs_list:
@@ -215,9 +215,9 @@ async def get_income_statement(entity_id: str) -> dict[str, Any]:
 
     売上→売上原価→売上総利益→販管費→営業利益→純利益の構造。
     """
-    demo = DemoData.get()
-    fs_list = demo.get_financial_statements_by_entity(entity_id)
-    entity = demo.get_entity_by_id(entity_id)
+    provider = get_data_provider()
+    fs_list = provider.get_financial_statements_by_entity(entity_id)
+    entity = provider.get_entity_by_id(entity_id)
 
     pl_trend = []
     for fs in fs_list:

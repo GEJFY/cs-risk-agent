@@ -12,8 +12,8 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+from cs_risk_agent.data.provider import get_data_provider
 from cs_risk_agent.data.schemas import ReportRequest, ReportResponse
-from cs_risk_agent.demo_loader import DemoData
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +33,13 @@ async def generate_report(request: ReportRequest):
     デモデータを使用してPDFまたはPPTX形式のレポートを生成する。
     """
     report_id = str(uuid4())
-    demo = DemoData.get()
+    provider = get_data_provider()
 
     # データ準備
-    entities = demo.get_all_entities()
-    risk_scores = demo.risk_scores
-    alerts = demo.alerts
-    summary = demo.get_risk_summary()
+    entities = provider.get_all_entities()
+    risk_scores = list(provider.risk_scores)
+    alerts = list(provider.alerts)
+    summary = provider.get_risk_summary()
 
     # 指定企業のフィルタ
     if request.company_ids:

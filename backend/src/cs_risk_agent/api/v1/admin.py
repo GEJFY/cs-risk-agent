@@ -56,6 +56,7 @@ async def get_status():
         }
 
     return {
+        "data_mode": settings.data_mode.value,
         "mode": settings.ai.mode.value,
         "default_provider": settings.ai.default_provider,
         "fallback_chain": settings.ai.fallback_providers,

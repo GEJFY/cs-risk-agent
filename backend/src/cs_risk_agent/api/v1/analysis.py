@@ -1,25 +1,29 @@
-"""分析実行APIエンドポイント."""
+"""分析実行APIエンドポイント.
+
+同期実行と非同期 (BackgroundTasks) 実行の両方をサポート。
+"""
 
 from __future__ import annotations
 
 from uuid import uuid4
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 
+from cs_risk_agent.analysis.task_manager import get_task_manager
+from cs_risk_agent.data.provider import get_data_provider
 from cs_risk_agent.data.schemas import AnalysisRequest
-from cs_risk_agent.demo_loader import DemoData
 
 router = APIRouter()
 
 
 @router.post("/run")
 async def run_analysis(request: AnalysisRequest):
-    """分析実行（デモモード: デモデータのリスクスコアを返す）."""
-    demo = DemoData.get()
+    """分析実行（同期 - 即座に結果を返す）."""
+    provider = get_data_provider()
     results = []
     for cid in request.company_ids:
-        rs = demo.get_risk_score_by_entity(cid)
-        entity = demo.get_entity_by_id(cid)
+        rs = provider.get_risk_score_by_entity(cid)
+        entity = provider.get_entity_by_id(cid)
 
         if rs:
             results.append({
@@ -61,11 +65,67 @@ async def run_analysis(request: AnalysisRequest):
     return {"status": "completed", "results": results}
 
 
+@router.post("/run-async")
+async def run_analysis_async(
+    request: AnalysisRequest,
+    background_tasks: BackgroundTasks,
+):
+    """非同期分析実行（バックグラウンドタスク）.
+
+    タスクIDを即座に返し、バックグラウンドで分析を実行。
+    /tasks/{task_id} でステータスをポーリング可能。
+    """
+    manager = get_task_manager()
+    task = manager.create_task(
+        company_ids=request.company_ids,
+        fiscal_year=request.fiscal_year,
+        fiscal_quarter=request.fiscal_quarter,
+        engines=request.analysis_types,
+    )
+    background_tasks.add_task(manager.run_analysis, task)
+    return {
+        "task_id": task.task_id,
+        "status": task.status,
+        "message": "分析タスクを開始しました。/tasks/{task_id} でステータスを確認してください。",
+    }
+
+
+@router.get("/tasks")
+async def list_tasks(limit: int = 20):
+    """分析タスク一覧."""
+    manager = get_task_manager()
+    return {"tasks": manager.list_tasks(limit)}
+
+
+@router.get("/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    """タスクステータス取得."""
+    manager = get_task_manager()
+    task = manager.get_task(task_id)
+    if not task:
+        return {"task_id": task_id, "status": "not_found"}
+    return task.to_dict()
+
+
+@router.get("/tasks/{task_id}/results")
+async def get_task_results(task_id: str):
+    """タスク結果取得."""
+    manager = get_task_manager()
+    task = manager.get_task(task_id)
+    if not task:
+        return {"task_id": task_id, "status": "not_found", "results": []}
+    return {
+        "task_id": task_id,
+        "status": task.status,
+        "results": task.results,
+    }
+
+
 @router.get("/results/{company_id}")
 async def get_results(company_id: str):
     """分析結果取得."""
-    demo = DemoData.get()
-    rs = demo.get_risk_score_by_entity(company_id)
+    provider = get_data_provider()
+    rs = provider.get_risk_score_by_entity(company_id)
     if rs:
         return {"company_id": company_id, "results": [rs]}
     return {"company_id": company_id, "results": []}
@@ -74,8 +134,8 @@ async def get_results(company_id: str):
 @router.get("/results/{company_id}/trend")
 async def get_trend(company_id: str):
     """リスクスコアトレンド取得."""
-    demo = DemoData.get()
-    rs = demo.get_risk_score_by_entity(company_id)
+    provider = get_data_provider()
+    rs = provider.get_risk_score_by_entity(company_id)
     base_score = rs["total_score"] if rs else 30.0
 
     # 8四半期分のトレンドを生成（徐々にスコアが上昇）

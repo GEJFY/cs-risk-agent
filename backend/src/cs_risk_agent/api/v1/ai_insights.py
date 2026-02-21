@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from cs_risk_agent.data.schemas import AIChatRequest, AIChatResponse
-from cs_risk_agent.demo_loader import DemoData
+from cs_risk_agent.data.provider import get_data_provider
 
 router = APIRouter()
 
@@ -39,9 +39,9 @@ async def chat(request: AIChatRequest):
     # コンテキスト情報の組み立て
     context_text = ""
     if request.company_id:
-        demo = DemoData.get()
-        entity = demo.get_entity_by_id(request.company_id)
-        rs = demo.get_risk_score_by_entity(request.company_id)
+        provider = get_data_provider()
+        entity = provider.get_entity_by_id(request.company_id)
+        rs = provider.get_risk_score_by_entity(request.company_id)
         if entity:
             context_text += f"\n\n## 対象企業情報\n- 名前: {entity.get('name')}\n- 国: {entity.get('country')}\n- セグメント: {entity.get('segment')}\n"
         if rs:
@@ -76,13 +76,13 @@ async def chat(request: AIChatRequest):
 
 def _fallback_response(message: str, company_id: str | None) -> AIChatResponse:
     """プロバイダー未設定時のデモ応答."""
-    demo = DemoData.get()
+    provider = get_data_provider()
     msg_lower = message.lower()
 
     # キーワードに基づくデモ応答
     if company_id:
-        rs = demo.get_risk_score_by_entity(company_id)
-        entity = demo.get_entity_by_id(company_id)
+        rs = provider.get_risk_score_by_entity(company_id)
+        entity = provider.get_entity_by_id(company_id)
         if rs and entity:
             factors_text = "\n".join(f"- {f}" for f in rs.get("risk_factors", []))
             return AIChatResponse(
@@ -118,7 +118,7 @@ def _fallback_response(message: str, company_id: str | None) -> AIChatResponse:
         )
 
     # 汎用応答
-    summary = demo.get_risk_summary()
+    summary = provider.get_risk_summary()
     return AIChatResponse(
         response=f"東洋重工グループの連結子会社リスク分析へようこそ。\n\n"
         f"**現在のリスク状況:**\n"
@@ -141,8 +141,8 @@ def _fallback_response(message: str, company_id: str | None) -> AIChatResponse:
 @router.get("/insights/{company_id}")
 async def get_insights(company_id: str):
     """AIインサイト取得."""
-    demo = DemoData.get()
-    rs = demo.get_risk_score_by_entity(company_id)
+    provider = get_data_provider()
+    rs = provider.get_risk_score_by_entity(company_id)
     if not rs:
         return {"company_id": company_id, "insights": []}
 
