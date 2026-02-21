@@ -8,14 +8,22 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from cs_risk_agent.core.security import Role, create_access_token
 from cs_risk_agent.main import app
+
+
+def _auth_header() -> dict[str, str]:
+    token = create_access_token(subject="testuser", role=Role.ADMIN)
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
 async def client():
-    """テスト用非同期HTTPクライアント."""
+    """テスト用非同期HTTPクライアント (認証付き)."""
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=_auth_header()
+    ) as ac:
         yield ac
 
 

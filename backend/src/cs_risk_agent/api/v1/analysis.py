@@ -5,11 +5,13 @@
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from cs_risk_agent.analysis.task_manager import get_task_manager
+from cs_risk_agent.api.deps import require_permission
 from cs_risk_agent.data.provider import get_data_provider
 from cs_risk_agent.data.schemas import AnalysisRequest
 
@@ -17,7 +19,10 @@ router = APIRouter()
 
 
 @router.post("/run")
-async def run_analysis(request: AnalysisRequest):
+async def run_analysis(
+    request: AnalysisRequest,
+    current_user: dict[str, Any] = Depends(require_permission("analysis:run")),
+):
     """分析実行（同期 - 即座に結果を返す）."""
     provider = get_data_provider()
     results = []
@@ -69,6 +74,7 @@ async def run_analysis(request: AnalysisRequest):
 async def run_analysis_async(
     request: AnalysisRequest,
     background_tasks: BackgroundTasks,
+    current_user: dict[str, Any] = Depends(require_permission("analysis:run")),
 ):
     """非同期分析実行（バックグラウンドタスク）.
 
@@ -91,14 +97,20 @@ async def run_analysis_async(
 
 
 @router.get("/tasks")
-async def list_tasks(limit: int = 20):
+async def list_tasks(
+    limit: int = 20,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """分析タスク一覧."""
     manager = get_task_manager()
     return {"tasks": manager.list_tasks(limit)}
 
 
 @router.get("/tasks/{task_id}")
-async def get_task_status(task_id: str):
+async def get_task_status(
+    task_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """タスクステータス取得."""
     manager = get_task_manager()
     task = manager.get_task(task_id)
@@ -108,7 +120,10 @@ async def get_task_status(task_id: str):
 
 
 @router.get("/tasks/{task_id}/results")
-async def get_task_results(task_id: str):
+async def get_task_results(
+    task_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """タスク結果取得."""
     manager = get_task_manager()
     task = manager.get_task(task_id)
@@ -122,7 +137,10 @@ async def get_task_results(task_id: str):
 
 
 @router.get("/results/{company_id}")
-async def get_results(company_id: str):
+async def get_results(
+    company_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """分析結果取得."""
     provider = get_data_provider()
     rs = provider.get_risk_score_by_entity(company_id)
@@ -132,7 +150,10 @@ async def get_results(company_id: str):
 
 
 @router.get("/results/{company_id}/trend")
-async def get_trend(company_id: str):
+async def get_trend(
+    company_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """リスクスコアトレンド取得."""
     provider = get_data_provider()
     rs = provider.get_risk_score_by_entity(company_id)

@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
+from cs_risk_agent.api.deps import require_permission
 from cs_risk_agent.data.provider import get_data_provider
 
 router = APIRouter()
@@ -19,6 +20,7 @@ router = APIRouter()
 async def list_financial_statements(
     entity_id: str | None = None,
     fiscal_year: int | None = None,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
 ) -> dict[str, Any]:
     """財務諸表一覧.
 
@@ -37,7 +39,10 @@ async def list_financial_statements(
 
 
 @router.get("/statements/{entity_id}/trend")
-async def get_financial_trend(entity_id: str) -> dict[str, Any]:
+async def get_financial_trend(
+    entity_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+) -> dict[str, Any]:
     """財務推移データ(PL/BS/CF主要項目の四半期トレンド)."""
     provider = get_data_provider()
     fs_list = provider.get_financial_statements_by_entity(entity_id)
@@ -77,7 +82,10 @@ async def get_financial_trend(entity_id: str) -> dict[str, Any]:
 
 
 @router.get("/ratios/{entity_id}")
-async def get_financial_ratios(entity_id: str) -> dict[str, Any]:
+async def get_financial_ratios(
+    entity_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+) -> dict[str, Any]:
     """財務指標の四半期推移.
 
     収益性・安全性・効率性・CFの指標をルールエンジンやエージェントの入力に使用可能。
@@ -93,7 +101,9 @@ async def get_financial_ratios(entity_id: str) -> dict[str, Any]:
 
 
 @router.get("/ratios")
-async def get_all_financial_ratios() -> dict[str, Any]:
+async def get_all_financial_ratios(
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+) -> dict[str, Any]:
     """全エンティティの最新財務指標一覧(比較分析用)."""
     provider = get_data_provider()
     all_entities = provider.get_all_entities()
@@ -114,7 +124,10 @@ async def get_all_financial_ratios() -> dict[str, Any]:
 
 
 @router.get("/trial-balance/{entity_id}")
-async def get_trial_balance(entity_id: str) -> dict[str, Any]:
+async def get_trial_balance(
+    entity_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+) -> dict[str, Any]:
     """試算表(TB).
 
     仕訳データを勘定科目別に集計し、借方・貸方・残高を返す。
@@ -135,6 +148,7 @@ async def get_journal_entries(
     entity_id: str,
     anomaly_only: bool = Query(False),
     limit: int = Query(100, ge=1, le=1000),
+    current_user: dict[str, Any] = Depends(require_permission("read")),
 ) -> dict[str, Any]:
     """仕訳データ一覧.
 
@@ -153,7 +167,10 @@ async def get_journal_entries(
 
 
 @router.get("/balance-sheet/{entity_id}")
-async def get_balance_sheet(entity_id: str) -> dict[str, Any]:
+async def get_balance_sheet(
+    entity_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+) -> dict[str, Any]:
     """貸借対照表データ(BS構造化).
 
     資産・負債・純資産の内訳と推移をチャート描画用に整形。
@@ -210,7 +227,10 @@ async def get_balance_sheet(entity_id: str) -> dict[str, Any]:
 
 
 @router.get("/income-statement/{entity_id}")
-async def get_income_statement(entity_id: str) -> dict[str, Any]:
+async def get_income_statement(
+    entity_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+) -> dict[str, Any]:
     """損益計算書データ(PL構造化).
 
     売上→売上原価→売上総利益→販管費→営業利益→純利益の構造。

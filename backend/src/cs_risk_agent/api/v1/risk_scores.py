@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from typing import Any
 
+from fastapi import APIRouter, Depends
+
+from cs_risk_agent.api.deps import require_permission
 from cs_risk_agent.data.provider import get_data_provider
 
 router = APIRouter()
@@ -13,6 +16,7 @@ router = APIRouter()
 async def list_risk_scores(
     risk_level: str | None = None,
     min_score: float | None = None,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
 ):
     """リスクスコア一覧."""
     provider = get_data_provider()
@@ -27,14 +31,18 @@ async def list_risk_scores(
 
 
 @router.get("/summary")
-async def get_summary():
+async def get_summary(
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """リスクサマリー."""
     provider = get_data_provider()
     return provider.get_risk_summary()
 
 
 @router.get("/high-risk")
-async def get_high_risk():
+async def get_high_risk(
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """高リスク企業一覧."""
     provider = get_data_provider()
     high = [
@@ -46,7 +54,10 @@ async def get_high_risk():
 
 
 @router.get("/alerts")
-async def get_alerts(severity: str | None = None):
+async def get_alerts(
+    severity: str | None = None,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """アラート一覧."""
     provider = get_data_provider()
     return {"items": provider.get_alerts_by_severity(severity), "total": len(provider.alerts)}

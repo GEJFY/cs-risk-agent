@@ -5,8 +5,9 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from cs_risk_agent.api.deps import require_permission
 from cs_risk_agent.config import get_settings
 
 router = APIRouter()
@@ -44,7 +45,9 @@ def _get_provider_info(name: str, settings: Any) -> dict[str, Any]:
 
 
 @router.get("/status")
-async def get_status():
+async def get_status(
+    current_user: dict[str, Any] = Depends(require_permission("admin")),
+):
     """システムステータス・プロバイダー一覧."""
     settings = get_settings()
     providers = {}
@@ -70,7 +73,9 @@ async def get_status():
 
 
 @router.get("/providers")
-async def get_providers():
+async def get_providers(
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """プロバイダー詳細一覧."""
     settings = get_settings()
     result = []
@@ -81,7 +86,10 @@ async def get_providers():
 
 
 @router.get("/providers/{provider_id}/health")
-async def check_provider_health(provider_id: str):
+async def check_provider_health(
+    provider_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("admin")),
+):
     """プロバイダーのヘルスチェック."""
     try:
         from cs_risk_agent.ai.router import get_ai_router
@@ -96,7 +104,9 @@ async def check_provider_health(provider_id: str):
 
 
 @router.get("/budget")
-async def get_budget():
+async def get_budget(
+    current_user: dict[str, Any] = Depends(require_permission("admin")),
+):
     """予算ステータス."""
     settings = get_settings()
     try:
@@ -113,7 +123,9 @@ async def get_budget():
 
 
 @router.get("/cost")
-async def get_cost():
+async def get_cost(
+    current_user: dict[str, Any] = Depends(require_permission("admin")),
+):
     """コスト詳細."""
     try:
         from cs_risk_agent.ai.router import get_ai_router
@@ -123,7 +135,10 @@ async def get_cost():
 
 
 @router.post("/providers/{provider_id}/set-default")
-async def set_default_provider(provider_id: str):
+async def set_default_provider(
+    provider_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("admin")),
+):
     """デフォルトプロバイダーを変更."""
     valid = ["azure", "aws", "gcp", "ollama", "vllm"]
     if provider_id not in valid:

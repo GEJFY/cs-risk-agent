@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Callable
 
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cs_risk_agent.config import Settings, get_settings
-from cs_risk_agent.core.exceptions import AuthenticationError
-from cs_risk_agent.core.security import decode_access_token
+from cs_risk_agent.core.exceptions import AuthenticationError, AuthorizationError
+from cs_risk_agent.core.security import Role, check_permission, decode_access_token
 from cs_risk_agent.data.database import get_db_session
 
 
@@ -82,6 +82,32 @@ async def get_current_user(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def require_permission(permission: str) -> Callable:
+    """RBAC パーミッションチェック依存性を生成する.
+
+    Args:
+        permission: 必要なパーミッション文字列 (例: "read", "analysis:run")。
+
+    Returns:
+        FastAPI Depends で使用可能な依存性関数。
+    """
+
+    async def _check(
+        current_user: dict[str, Any] = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        try:
+            role = Role(current_user["role"])
+            check_permission(role, permission)
+        except AuthorizationError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission '{permission}' required. Role '{current_user['role']}' is not authorized.",
+            )
+        return current_user
+
+    return _check
 
 
 # ---------------------------------------------------------------------------

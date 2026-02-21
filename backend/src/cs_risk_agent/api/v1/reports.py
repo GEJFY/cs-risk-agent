@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
+from cs_risk_agent.api.deps import require_permission
 from cs_risk_agent.data.provider import get_data_provider
 from cs_risk_agent.data.schemas import ReportRequest, ReportResponse
 
@@ -27,7 +29,10 @@ _REPORT_DIR = Path(__file__).parent.parent.parent.parent.parent.parent / "demo_d
 
 
 @router.post("/generate", response_model=ReportResponse)
-async def generate_report(request: ReportRequest):
+async def generate_report(
+    request: ReportRequest,
+    current_user: dict[str, Any] = Depends(require_permission("reports:generate")),
+):
     """レポート生成.
 
     デモデータを使用してPDFまたはPPTX形式のレポートを生成する。
@@ -113,7 +118,10 @@ async def generate_report(request: ReportRequest):
 
 
 @router.get("/{report_id}/status")
-async def get_report_status(report_id: str):
+async def get_report_status(
+    report_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """レポート生成ステータス."""
     if report_id in _report_store:
         info = _report_store[report_id]
@@ -130,7 +138,10 @@ async def get_report_status(report_id: str):
 
 
 @router.get("/{report_id}/download")
-async def download_report(report_id: str):
+async def download_report(
+    report_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """レポートダウンロード."""
     if report_id not in _report_store:
         raise HTTPException(status_code=404, detail="Report not found")
