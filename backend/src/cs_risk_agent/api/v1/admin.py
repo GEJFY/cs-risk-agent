@@ -5,12 +5,48 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 
 from cs_risk_agent.api.deps import require_permission
 from cs_risk_agent.config import get_settings
 
+logger = structlog.get_logger(__name__)
+
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# 設定永続化用モデル (インメモリストア)
+# ---------------------------------------------------------------------------
+
+class NotificationSettings(BaseModel):
+    """通知設定."""
+
+    critical_risk_alert: bool = True
+    analysis_complete: bool = True
+    daily_summary: bool = False
+    budget_alert: bool = True
+
+
+class ThresholdSettings(BaseModel):
+    """リスク閾値設定."""
+
+    critical: int = Field(default=80, ge=0, le=100)
+    high: int = Field(default=60, ge=0, le=100)
+    medium: int = Field(default=40, ge=0, le=100)
+
+
+class AppSettings(BaseModel):
+    """アプリケーション設定."""
+
+    notifications: NotificationSettings = NotificationSettings()
+    thresholds: ThresholdSettings = ThresholdSettings()
+
+
+# インメモリ設定ストア (本番ではDB永続化に切り替え)
+_app_settings = AppSettings()
 
 
 def _get_provider_info(name: str, settings: Any) -> dict[str, Any]:
@@ -99,7 +135,11 @@ async def check_provider_health(
             return {"provider": provider_id, "healthy": False, "error": "Not registered"}
         healthy = await provider.health_check()
         return {"provider": provider_id, "healthy": healthy}
+    except ImportError:
+        logger.warning("health_check_failed", provider=provider_id, reason="AI router not available")
+        return {"provider": provider_id, "healthy": False, "error": "AI router not available"}
     except Exception as e:
+        logger.error("health_check_error", provider=provider_id, error=str(e))
         return {"provider": provider_id, "healthy": False, "error": str(e)}
 
 
@@ -112,7 +152,17 @@ async def get_budget(
     try:
         from cs_risk_agent.ai.router import get_ai_router
         return get_ai_router()._circuit_breaker.to_dict()
-    except Exception:
+    except ImportError:
+        logger.debug("budget_fallback", reason="AI router not available")
+        return {
+            "state": "closed",
+            "monthly_limit_usd": settings.ai.monthly_budget_usd,
+            "current_spend_usd": 0.0,
+            "remaining_usd": settings.ai.monthly_budget_usd,
+            "usage_ratio": 0.0,
+        }
+    except Exception as e:
+        logger.error("budget_query_error", error=str(e))
         return {
             "state": "closed",
             "monthly_limit_usd": settings.ai.monthly_budget_usd,
@@ -130,7 +180,11 @@ async def get_cost(
     try:
         from cs_risk_agent.ai.router import get_ai_router
         return get_ai_router()._cost_tracker.get_summary()
-    except Exception:
+    except ImportError:
+        logger.debug("cost_fallback", reason="AI router not available")
+        return {"total_cost_usd": 0.0, "total_requests": 0, "by_provider": {}, "by_model": {}}
+    except Exception as e:
+        logger.error("cost_query_error", error=str(e))
         return {"total_cost_usd": 0.0, "total_requests": 0, "by_provider": {}, "by_model": {}}
 
 
@@ -145,4 +199,34 @@ async def set_default_provider(
         return {"error": f"Invalid provider: {provider_id}", "valid": valid}
     os.environ["AI_DEFAULT_PROVIDER"] = provider_id
     get_settings.cache_clear()
+    logger.info("default_provider_changed", provider=provider_id, user=current_user.get("sub"))
     return {"status": "ok", "default_provider": provider_id}
+
+
+# ---------------------------------------------------------------------------
+# アプリケーション設定 CRUD
+# ---------------------------------------------------------------------------
+
+
+@router.get("/settings")
+async def get_app_settings(
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
+    """現在のアプリケーション設定を取得."""
+    return _app_settings.model_dump()
+
+
+@router.put("/settings")
+async def update_app_settings(
+    payload: AppSettings,
+    current_user: dict[str, Any] = Depends(require_permission("admin")),
+):
+    """アプリケーション設定を更新."""
+    global _app_settings  # noqa: PLW0603
+    _app_settings = payload
+    logger.info(
+        "settings_updated",
+        user=current_user.get("sub"),
+        thresholds=payload.thresholds.model_dump(),
+    )
+    return {"status": "ok", "settings": _app_settings.model_dump()}
