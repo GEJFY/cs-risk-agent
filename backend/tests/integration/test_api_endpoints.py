@@ -8,7 +8,19 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from cs_risk_agent.core.security import Role, create_access_token
 from cs_risk_agent.main import app
+
+
+# ---------------------------------------------------------------------------
+# ヘルパー
+# ---------------------------------------------------------------------------
+
+
+def _auth_header(role: Role = Role.ADMIN) -> dict[str, str]:
+    """テスト用 Authorization ヘッダーを生成."""
+    token = create_access_token(subject="testuser", role=role)
+    return {"Authorization": f"Bearer {token}"}
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +110,7 @@ class TestImplementedEndpoints:
     @pytest.mark.asyncio
     async def test_list_companies(self, client):
         """/api/v1/companies/ が企業一覧を返すこと."""
-        response = await client.get("/api/v1/companies/")
+        response = await client.get("/api/v1/companies/", headers=_auth_header())
         assert response.status_code == 200
         data = response.json()
         assert "items" in data
@@ -107,13 +119,13 @@ class TestImplementedEndpoints:
     @pytest.mark.asyncio
     async def test_admin_status(self, client):
         """/api/v1/admin/status がシステムステータスを返すこと."""
-        response = await client.get("/api/v1/admin/status")
+        response = await client.get("/api/v1/admin/status", headers=_auth_header())
         assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_admin_budget(self, client):
         """/api/v1/admin/budget が予算情報を返すこと."""
-        response = await client.get("/api/v1/admin/budget")
+        response = await client.get("/api/v1/admin/budget", headers=_auth_header())
         assert response.status_code == 200
 
 

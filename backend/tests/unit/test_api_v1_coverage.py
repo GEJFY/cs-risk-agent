@@ -5,13 +5,24 @@ from __future__ import annotations
 import pytest
 from starlette.testclient import TestClient
 
+from cs_risk_agent.core.security import Role, create_access_token
 from cs_risk_agent.demo_loader import DemoData
 from cs_risk_agent.main import app
 
 
+def _auth_headers(role: Role = Role.ADMIN) -> dict[str, str]:
+    """テスト用 Authorization ヘッダー."""
+    token = create_access_token(subject="testuser", role=role)
+    return {"Authorization": f"Bearer {token}"}
+
+
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    """認証ヘッダー付きテストクライアント."""
+    c = TestClient(app)
+    # デフォルトで admin トークンをヘッダーに付与
+    c.headers.update(_auth_headers(Role.ADMIN))
+    return c
 
 
 @pytest.fixture()

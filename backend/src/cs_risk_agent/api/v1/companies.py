@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from cs_risk_agent.api.deps import require_permission
 from cs_risk_agent.data.provider import get_data_provider
 from cs_risk_agent.data.schemas import CompanyCreate, PaginatedResponse
 
@@ -16,6 +18,7 @@ router = APIRouter()
 async def list_companies(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    current_user: dict[str, Any] = Depends(require_permission("read")),
 ):
     """企業一覧取得（親会社 + 子会社）."""
     provider = get_data_provider()
@@ -36,7 +39,10 @@ async def list_companies(
 
 
 @router.get("/{company_id}")
-async def get_company(company_id: str):
+async def get_company(
+    company_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """企業・子会社詳細取得."""
     provider = get_data_provider()
     entity = provider.get_entity_by_id(company_id)
@@ -52,7 +58,10 @@ async def get_company(company_id: str):
 
 
 @router.post("/", status_code=201)
-async def create_company(data: CompanyCreate):
+async def create_company(
+    data: CompanyCreate,
+    current_user: dict[str, Any] = Depends(require_permission("write")),
+):
     """企業登録."""
     company = {
         "id": str(uuid4()),

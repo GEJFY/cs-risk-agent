@@ -17,6 +17,12 @@ export class ApiError extends Error {
   }
 }
 
+/** ローカルストレージからトークンを取得 */
+function getAccessToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem('access_token')
+}
+
 /**
  * 汎用APIフェッチヘルパー
  * @param path - APIパス (例: /api/v1/companies)
@@ -32,6 +38,12 @@ export async function fetchAPI<T = unknown>(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
+  }
+
+  // 認証トークンを自動付与
+  const token = getAccessToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
   }
 
   const response = await fetch(url, {
@@ -132,6 +144,18 @@ export interface ReportRequest {
  * 各エンドポイントへのアクセスメソッドを提供
  */
 export const api = {
+  /** 認証関連 */
+  auth: {
+    login: (username: string, password: string) =>
+      fetchAPI<{ access_token: string; token_type: string; role: string }>(
+        '/api/v1/auth/login',
+        { method: 'POST', body: JSON.stringify({ username, password }) }
+      ),
+    me: () => fetchAPI<{ user: string | null; role: string | null; authenticated: boolean }>(
+      '/api/v1/auth/me'
+    ),
+  },
+
   /** 企業関連 */
   companies: {
     list: (page = 1, perPage = 20) =>

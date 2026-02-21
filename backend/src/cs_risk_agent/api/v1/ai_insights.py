@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Any
 
+from fastapi import APIRouter, Depends
+
+from cs_risk_agent.api.deps import require_permission
 from cs_risk_agent.data.schemas import AIChatRequest, AIChatResponse
 from cs_risk_agent.data.provider import get_data_provider
 
@@ -34,7 +37,10 @@ SYSTEM_PROMPT = """あなたは「CS Risk Agent」の連結子会社リスク分
 
 
 @router.post("/chat", response_model=AIChatResponse)
-async def chat(request: AIChatRequest):
+async def chat(
+    request: AIChatRequest,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """AIチャット（システムプロンプト＋コンテキスト付き）."""
     # コンテキスト情報の組み立て
     context_text = ""
@@ -139,7 +145,10 @@ def _fallback_response(message: str, company_id: str | None) -> AIChatResponse:
 
 
 @router.get("/insights/{company_id}")
-async def get_insights(company_id: str):
+async def get_insights(
+    company_id: str,
+    current_user: dict[str, Any] = Depends(require_permission("read")),
+):
     """AIインサイト取得."""
     provider = get_data_provider()
     rs = provider.get_risk_score_by_entity(company_id)
