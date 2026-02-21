@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '@/stores/app-store'
 import {
   Settings,
@@ -14,6 +14,7 @@ import {
   Loader2,
   RefreshCw,
   Star,
+  Save,
 } from 'lucide-react'
 import { fetchAPI } from '@/lib/api-client'
 
@@ -83,6 +84,34 @@ const statusConfig = {
  * 設定ページ
  * AIプロバイダーの状態、予算情報、通知設定を表示
  */
+/** 通知設定 */
+interface NotificationSettings {
+  critical_risk_alert: boolean
+  analysis_complete: boolean
+  daily_summary: boolean
+  budget_alert: boolean
+}
+
+/** リスク閾値設定 */
+interface ThresholdSettings {
+  critical: number
+  high: number
+  medium: number
+}
+
+/** アプリ設定 */
+interface AppSettingsData {
+  notifications: NotificationSettings
+  thresholds: ThresholdSettings
+}
+
+const NOTIFICATION_KEYS: { key: keyof NotificationSettings; label: string; description: string }[] = [
+  { key: 'critical_risk_alert', label: 'クリティカルリスクアラート', description: 'リスクスコア80以上の検出時に通知' },
+  { key: 'analysis_complete', label: '分析完了通知', description: 'リスク分析の完了時に通知' },
+  { key: 'daily_summary', label: '日次サマリーレポート', description: '毎日のリスク状況サマリーを送信' },
+  { key: 'budget_alert', label: '予算アラート', description: 'AI使用料が予算閾値を超えた場合に通知' },
+]
+
 export default function SettingsPage() {
   const { sidebarOpen } = useAppStore()
   const [adminStatus, setAdminStatus] = useState<AdminStatus | null>(null)
@@ -91,26 +120,74 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [settingDefault, setSettingDefault] = useState<string | null>(null)
 
+  // 設定状態
+  const [notifications, setNotifications] = useState<NotificationSettings>({
+    critical_risk_alert: true,
+    analysis_complete: true,
+    daily_summary: false,
+    budget_alert: true,
+  })
+  const [thresholds, setThresholds] = useState<ThresholdSettings>({
+    critical: 80, high: 60, medium: 40,
+  })
+  const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
+
   /** データ取得 */
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [status, budget, cost] = await Promise.all([
+      const [status, budget, cost, appSettings] = await Promise.all([
         fetchAPI<AdminStatus>('/api/v1/admin/status'),
         fetchAPI<BudgetStatus>('/api/v1/admin/budget'),
         fetchAPI<CostSummary>('/api/v1/admin/cost'),
+        fetchAPI<AppSettingsData>('/api/v1/admin/settings').catch(() => null),
       ])
       setAdminStatus(status)
       setBudgetStatus(budget)
       setCostSummary(cost)
+      if (appSettings) {
+        setNotifications(appSettings.notifications)
+        setThresholds(appSettings.thresholds)
+      }
     } catch (e) {
       console.error('Failed to fetch admin data:', e)
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  /** 通知トグル */
+  const toggleNotification = (key: keyof NotificationSettings) => {
+    setNotifications(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  useEffect(() => { fetchData() }, [])
+  /** 閾値変更 */
+  const updateThreshold = (key: keyof ThresholdSettings, value: number) => {
+    setThresholds(prev => ({ ...prev, [key]: Math.max(0, Math.min(100, value)) }))
+  }
+
+  /** 設定保存 */
+  const handleSaveSettings = async () => {
+    setSaving(true)
+    setSaveMessage(null)
+    try {
+      await fetchAPI('/api/v1/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ notifications, thresholds }),
+      })
+      setSaveMessage('設定を保存しました')
+      setTimeout(() => setSaveMessage(null), 3000)
+    } catch (e) {
+      console.error('Failed to save settings:', e)
+      setSaveMessage('保存に失敗しました')
+      setTimeout(() => setSaveMessage(null), 3000)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   /** デフォルトプロバイダー変更 */
   const handleSetDefault = async (providerId: string) => {
@@ -320,55 +397,39 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-4">
-              {[
-                {
-                  label: 'クリティカルリスクアラート',
-                  description: 'リスクスコア80以上の検出時に通知',
-                  enabled: true,
-                },
-                {
-                  label: '分析完了通知',
-                  description: 'リスク分析の完了時に通知',
-                  enabled: true,
-                },
-                {
-                  label: '日次サマリーレポート',
-                  description: '毎日のリスク状況サマリーを送信',
-                  enabled: false,
-                },
-                {
-                  label: '予算アラート',
-                  description: `AI使用料が予算の${((adminStatus?.budget?.alert_threshold ?? 0.8) * 100).toFixed(0)}%を超えた場合に通知`,
-                  enabled: true,
-                },
-              ].map((setting) => (
-                <div
-                  key={setting.label}
-                  className="flex items-center justify-between rounded-lg border border-border p-4"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-card-foreground">
-                      {setting.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {setting.description}
-                    </p>
-                  </div>
+              {NOTIFICATION_KEYS.map((setting) => {
+                const enabled = notifications[setting.key]
+                return (
                   <div
-                    className={`
-                      relative h-6 w-11 cursor-pointer rounded-full transition-colors
-                      ${setting.enabled ? 'bg-primary' : 'bg-muted'}
-                    `}
+                    key={setting.key}
+                    className="flex items-center justify-between rounded-lg border border-border p-4"
                   >
-                    <div
+                    <div>
+                      <p className="text-sm font-medium text-card-foreground">
+                        {setting.label}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {setting.description}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleNotification(setting.key)}
                       className={`
-                        absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform
-                        ${setting.enabled ? 'translate-x-5' : 'translate-x-0.5'}
+                        relative h-6 w-11 cursor-pointer rounded-full transition-colors
+                        ${enabled ? 'bg-primary' : 'bg-muted'}
                       `}
-                    />
+                    >
+                      <div
+                        className={`
+                          absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform
+                          ${enabled ? 'translate-x-5' : 'translate-x-0.5'}
+                        `}
+                      />
+                    </button>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
@@ -386,26 +447,11 @@ export default function SettingsPage() {
             </p>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {[
-                {
-                  level: 'クリティカル',
-                  threshold: 80,
-                  color: 'border-risk-critical',
-                  textColor: 'text-risk-critical',
-                },
-                {
-                  level: '高リスク',
-                  threshold: 60,
-                  color: 'border-risk-high',
-                  textColor: 'text-risk-high',
-                },
-                {
-                  level: '中リスク',
-                  threshold: 40,
-                  color: 'border-risk-medium',
-                  textColor: 'text-risk-medium',
-                },
-              ].map((item) => (
+              {([
+                { level: 'クリティカル', key: 'critical' as const, color: 'border-risk-critical', textColor: 'text-risk-critical' },
+                { level: '高リスク', key: 'high' as const, color: 'border-risk-high', textColor: 'text-risk-high' },
+                { level: '中リスク', key: 'medium' as const, color: 'border-risk-medium', textColor: 'text-risk-medium' },
+              ]).map((item) => (
                 <div
                   key={item.level}
                   className={`rounded-lg border-l-4 ${item.color} border border-border p-4`}
@@ -416,7 +462,8 @@ export default function SettingsPage() {
                   <div className="mt-2 flex items-center gap-2">
                     <input
                       type="number"
-                      defaultValue={item.threshold}
+                      value={thresholds[item.key]}
+                      onChange={(e) => updateThreshold(item.key, parseInt(e.target.value) || 0)}
                       min={0}
                       max={100}
                       className="w-20 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -427,8 +474,18 @@ export default function SettingsPage() {
               ))}
             </div>
 
-            <div className="mt-4 flex justify-end">
-              <button className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+            <div className="mt-4 flex items-center justify-end gap-3">
+              {saveMessage && (
+                <span className={`text-sm ${saveMessage.includes('失敗') ? 'text-risk-critical' : 'text-risk-low'}`}>
+                  {saveMessage}
+                </span>
+              )}
+              <button
+                onClick={handleSaveSettings}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 設定を保存
               </button>
             </div>

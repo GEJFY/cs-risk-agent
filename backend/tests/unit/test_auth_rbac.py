@@ -202,3 +202,107 @@ class TestRBAC:
                 assert response.status_code == 200, (
                     f"Role {role.value} should access {endpoint} but got {response.status_code}"
                 )
+
+
+class TestSettingsAPI:
+    """設定APIテスト."""
+
+    @pytest.mark.asyncio
+    async def test_get_settings_with_read(self, client):
+        """read権限で設定取得可能であること."""
+        response = await client.get(
+            "/api/v1/admin/settings",
+            headers=_auth_header(Role.VIEWER),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "notifications" in data
+        assert "thresholds" in data
+
+    @pytest.mark.asyncio
+    async def test_update_settings_admin_only(self, client):
+        """admin権限で設定更新可能であること."""
+        payload = {
+            "notifications": {
+                "critical_risk_alert": True,
+                "analysis_complete": False,
+                "daily_summary": True,
+                "budget_alert": True,
+            },
+            "thresholds": {"critical": 90, "high": 70, "medium": 50},
+        }
+        response = await client.put(
+            "/api/v1/admin/settings",
+            json=payload,
+            headers=_auth_header(Role.ADMIN),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["settings"]["thresholds"]["critical"] == 90
+        assert data["settings"]["notifications"]["daily_summary"] is True
+
+    @pytest.mark.asyncio
+    async def test_update_settings_viewer_forbidden(self, client):
+        """viewer権限で設定更新不可であること."""
+        payload = {
+            "notifications": {
+                "critical_risk_alert": True,
+                "analysis_complete": True,
+                "daily_summary": False,
+                "budget_alert": True,
+            },
+            "thresholds": {"critical": 80, "high": 60, "medium": 40},
+        }
+        response = await client.put(
+            "/api/v1/admin/settings",
+            json=payload,
+            headers=_auth_header(Role.VIEWER),
+        )
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_update_settings_validates_thresholds(self, client):
+        """閾値が0-100のバリデーションが効くこと."""
+        payload = {
+            "notifications": {
+                "critical_risk_alert": True,
+                "analysis_complete": True,
+                "daily_summary": False,
+                "budget_alert": True,
+            },
+            "thresholds": {"critical": 150, "high": 60, "medium": 40},
+        }
+        response = await client.put(
+            "/api/v1/admin/settings",
+            json=payload,
+            headers=_auth_header(Role.ADMIN),
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_settings_roundtrip(self, client):
+        """設定の保存→取得が正しく動作すること."""
+        payload = {
+            "notifications": {
+                "critical_risk_alert": False,
+                "analysis_complete": True,
+                "daily_summary": True,
+                "budget_alert": False,
+            },
+            "thresholds": {"critical": 85, "high": 65, "medium": 45},
+        }
+        # 保存
+        await client.put(
+            "/api/v1/admin/settings",
+            json=payload,
+            headers=_auth_header(Role.ADMIN),
+        )
+        # 取得して検証
+        response = await client.get(
+            "/api/v1/admin/settings",
+            headers=_auth_header(Role.VIEWER),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["thresholds"]["critical"] == 85
+        assert data["notifications"]["daily_summary"] is True

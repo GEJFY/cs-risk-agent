@@ -17,10 +17,6 @@ def setup_tracing(settings: Settings) -> None:
     OTLP エクスポーターを設定し、FastAPI の自動計装を有効化する。
     開発環境ではコンソールエクスポーターも併用する。
 
-    TODO: opentelemetry-sdk, opentelemetry-exporter-otlp,
-          opentelemetry-instrumentation-fastapi パッケージが
-          インストールされ次第、実装を有効化する。
-
     Args:
         settings: アプリケーション設定。
     """
@@ -28,53 +24,50 @@ def setup_tracing(settings: Settings) -> None:
     otel_endpoint = settings.observability.otel_endpoint
 
     try:
-        # TODO: 以下のインポートと設定を有効化する
-        #
-        # from opentelemetry import trace
-        # from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-        #     OTLPSpanExporter,
-        # )
-        # from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-        # from opentelemetry.sdk.resources import Resource
-        # from opentelemetry.sdk.trace import TracerProvider
-        # from opentelemetry.sdk.trace.export import (
-        #     BatchSpanProcessor,
-        #     ConsoleSpanExporter,
-        # )
-        #
-        # # リソース定義（サービス識別情報）
-        # resource = Resource.create(
-        #     {
-        #         "service.name": service_name,
-        #         "service.version": "0.1.0",
-        #         "deployment.environment": settings.app_env.value,
-        #     }
-        # )
-        #
-        # # トレーサープロバイダーの作成
-        # provider = TracerProvider(resource=resource)
-        #
-        # # OTLP エクスポーター（本番・ステージング）
-        # otlp_exporter = OTLPSpanExporter(endpoint=otel_endpoint, insecure=True)
-        # provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-        #
-        # # 開発環境ではコンソール出力も追加
-        # if settings.app_debug:
-        #     provider.add_span_processor(
-        #         BatchSpanProcessor(ConsoleSpanExporter())
-        #     )
-        #
-        # # グローバルトレーサープロバイダーとして登録
-        # trace.set_tracer_provider(provider)
-        #
-        # # FastAPI 自動計装
-        # FastAPIInstrumentor.instrument()
+        from opentelemetry import trace
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+            OTLPSpanExporter,
+        )
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import (
+            BatchSpanProcessor,
+            ConsoleSpanExporter,
+        )
+
+        # リソース定義（サービス識別情報）
+        resource = Resource.create(
+            {
+                "service.name": service_name,
+                "service.version": "0.1.0",
+                "deployment.environment": settings.app_env.value,
+            }
+        )
+
+        # トレーサープロバイダーの作成
+        provider = TracerProvider(resource=resource)
+
+        # OTLP エクスポーター
+        otlp_exporter = OTLPSpanExporter(endpoint=otel_endpoint, insecure=True)
+        provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+
+        # 開発環境ではコンソール出力も追加
+        if settings.app_debug:
+            provider.add_span_processor(
+                BatchSpanProcessor(ConsoleSpanExporter())
+            )
+
+        # グローバルトレーサープロバイダーとして登録
+        trace.set_tracer_provider(provider)
+
+        # FastAPI 自動計装
+        FastAPIInstrumentor.instrument()
 
         logger.info(
             "tracing_configured",
             service_name=service_name,
             otel_endpoint=otel_endpoint,
-            note="placeholder - OpenTelemetry SDK not yet installed",
         )
 
     except ImportError:

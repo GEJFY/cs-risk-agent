@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import structlog
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from cs_risk_agent.core.security import Role, create_access_token
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -43,6 +46,7 @@ async def login(request: LoginRequest):
     """
     user = _DEMO_USERS.get(request.username)
     if not user or user["password"] != request.password:
+        logger.warning("login_failed", username=request.username)
         from fastapi import HTTPException
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -50,6 +54,7 @@ async def login(request: LoginRequest):
         subject=request.username,
         role=user["role"],
     )
+    logger.info("login_success", username=request.username, role=user["role"].value)
     return TokenResponse(
         access_token=token,
         role=user["role"].value,
@@ -73,5 +78,6 @@ async def get_me(authorization: str | None = None):
             "role": payload.role.value,
             "authenticated": True,
         }
-    except Exception:
+    except Exception as e:
+        logger.debug("auth_me_failed", error=str(e))
         return {"user": None, "authenticated": False}
