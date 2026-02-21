@@ -276,23 +276,22 @@ class TestAIInsightsFallback:
         """企業指定時のフォールバック応答."""
         from cs_risk_agent.api.v1.ai_insights import _fallback_response
 
-        with patch("cs_risk_agent.api.v1.ai_insights.DemoData") as mock_demo:
-            mock_data = MagicMock()
-            mock_data.get_risk_score_by_entity.return_value = {
-                "total_score": 85,
-                "risk_level": "critical",
-                "da_score": 78,
-                "fraud_score": 82,
-                "rule_score": 90,
-                "benford_score": 88,
-                "risk_factors": ["売掛金急増", "CF逆相関"],
-            }
-            mock_data.get_entity_by_id.return_value = {
-                "name": "テスト子会社",
-                "country": "JP",
-            }
-            mock_demo.get.return_value = mock_data
+        mock_provider = MagicMock()
+        mock_provider.get_risk_score_by_entity.return_value = {
+            "total_score": 85,
+            "risk_level": "critical",
+            "da_score": 78,
+            "fraud_score": 82,
+            "rule_score": 90,
+            "benford_score": 88,
+            "risk_factors": ["売掛金急増", "CF逆相関"],
+        }
+        mock_provider.get_entity_by_id.return_value = {
+            "name": "テスト子会社",
+            "country": "JP",
+        }
 
+        with patch("cs_risk_agent.api.v1.ai_insights.get_data_provider", return_value=mock_provider):
             response = _fallback_response("リスク分析", "ENT001")
             assert response.provider == "demo"
             assert "85" in response.response
@@ -302,15 +301,14 @@ class TestAIInsightsFallback:
         """汎用フォールバック応答."""
         from cs_risk_agent.api.v1.ai_insights import _fallback_response
 
-        with patch("cs_risk_agent.api.v1.ai_insights.DemoData") as mock_demo:
-            mock_data = MagicMock()
-            mock_data.get_risk_summary.return_value = {
-                "total_companies": 15,
-                "by_level": {"critical": 2, "high": 3, "medium": 5, "low": 5},
-                "avg_score": 45.5,
-            }
-            mock_demo.get.return_value = mock_data
+        mock_provider = MagicMock()
+        mock_provider.get_risk_summary.return_value = {
+            "total_companies": 15,
+            "by_level": {"critical": 2, "high": 3, "medium": 5, "low": 5},
+            "avg_score": 45.5,
+        }
 
+        with patch("cs_risk_agent.api.v1.ai_insights.get_data_provider", return_value=mock_provider):
             response = _fallback_response("こんにちは", None)
             assert response.provider == "demo"
             assert "15" in response.response
@@ -319,12 +317,11 @@ class TestAIInsightsFallback:
         """上海キーワード検出時のフォールバック."""
         from cs_risk_agent.api.v1.ai_insights import _fallback_response
 
-        with patch("cs_risk_agent.api.v1.ai_insights.DemoData") as mock_demo:
-            mock_data = MagicMock()
-            mock_data.get_risk_score_by_entity.return_value = None
-            mock_data.get_entity_by_id.return_value = None
-            mock_demo.get.return_value = mock_data
+        mock_provider = MagicMock()
+        mock_provider.get_risk_score_by_entity.return_value = None
+        mock_provider.get_entity_by_id.return_value = None
 
+        with patch("cs_risk_agent.api.v1.ai_insights.get_data_provider", return_value=mock_provider):
             response = _fallback_response("上海子会社の分析", None)
             assert "CRITICAL" in response.response
             assert "上海" in response.response

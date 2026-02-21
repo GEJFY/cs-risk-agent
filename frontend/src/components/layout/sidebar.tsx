@@ -10,6 +10,7 @@ import {
   Shield,
   ChevronLeft,
   BarChart3,
+  FileDown,
 } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 
@@ -38,6 +39,12 @@ const navItems = [
     label: '分析実行',
     labelEn: 'Analysis',
     icon: PlayCircle,
+  },
+  {
+    href: '/reports',
+    label: 'レポート',
+    labelEn: 'Reports',
+    icon: FileDown,
   },
   {
     href: '/settings',

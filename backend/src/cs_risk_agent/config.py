@@ -20,6 +20,13 @@ class Environment(StrEnum):
     PRODUCTION = "production"
 
 
+class DataMode(StrEnum):
+    """データソースモード."""
+
+    DEMO = "demo"
+    DB = "db"
+
+
 class AIMode(StrEnum):
     """AI実行モード."""
 
@@ -186,6 +193,9 @@ class Settings(BaseSettings):
     app_secret_key: str = "change-me-to-a-random-secret-key"
     app_host: str = "0.0.0.0"  # noqa: S104
     app_port: int = 8000
+
+    # --- Data Mode ---
+    data_mode: DataMode = DataMode.DEMO
 
     # --- CORS ---
     cors_origins: list[str] = Field(

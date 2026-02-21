@@ -6,8 +6,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query
 
+from cs_risk_agent.data.provider import get_data_provider
 from cs_risk_agent.data.schemas import CompanyCreate, PaginatedResponse
-from cs_risk_agent.demo_loader import DemoData
 
 router = APIRouter()
 
@@ -18,10 +18,10 @@ async def list_companies(
     per_page: int = Query(20, ge=1, le=100),
 ):
     """企業一覧取得（親会社 + 子会社）."""
-    demo = DemoData.get()
-    entities = demo.get_subsidiaries_with_risk()
+    provider = get_data_provider()
+    entities = provider.get_subsidiaries_with_risk()
     # 親会社を先頭に
-    all_entities = demo.companies + entities
+    all_entities = provider.get_all_entities()[:1] + entities
 
     total = len(all_entities)
     start = (page - 1) * per_page
@@ -38,13 +38,13 @@ async def list_companies(
 @router.get("/{company_id}")
 async def get_company(company_id: str):
     """企業・子会社詳細取得."""
-    demo = DemoData.get()
-    entity = demo.get_entity_by_id(company_id)
+    provider = get_data_provider()
+    entity = provider.get_entity_by_id(company_id)
     if entity is None:
         raise HTTPException(status_code=404, detail="Entity not found")
 
     # リスクスコアを付加
-    rs = demo.get_risk_score_by_entity(company_id)
+    rs = provider.get_risk_score_by_entity(company_id)
     result = {**entity}
     if rs:
         result["risk_score"] = rs
