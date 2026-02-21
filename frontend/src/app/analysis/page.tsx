@@ -1,48 +1,24 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { AnalysisForm } from '@/components/analysis/analysis-form'
 import { useAppStore } from '@/stores/app-store'
-import { PlayCircle, History, Clock } from 'lucide-react'
+import { fetchAPI } from '@/lib/api-client'
+import { PlayCircle, History, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 
-/** 最近の分析履歴 (デモ用) */
-const recentAnalyses = [
-  {
-    id: 'a-001',
-    companyName: '東南アジア製造子会社',
-    type: '総合リスク分析',
-    status: 'completed' as const,
-    score: 87,
-    date: '2026-02-15 09:30',
-    duration: '4分12秒',
-  },
-  {
-    id: 'a-002',
-    companyName: '欧州販売子会社',
-    type: '財務リスク分析',
-    status: 'completed' as const,
-    score: 72,
-    date: '2026-02-14 16:00',
-    duration: '1分45秒',
-  },
-  {
-    id: 'a-003',
-    companyName: '北米IT子会社',
-    type: 'コンプライアンス分析',
-    status: 'completed' as const,
-    score: 55,
-    date: '2026-02-14 14:20',
-    duration: '2分30秒',
-  },
-  {
-    id: 'a-004',
-    companyName: '中国物流子会社',
-    type: '総合リスク分析',
-    status: 'completed' as const,
-    score: 68,
-    date: '2026-02-13 11:00',
-    duration: '3分58秒',
-  },
-]
+/** タスク履歴 */
+interface TaskHistory {
+  task_id: string
+  status: string
+  progress: number
+  company_count: number
+  engines: string[]
+  fiscal_year: number
+  created_at: string
+  completed_at: string | null
+  result_count: number
+  error: string | null
+}
 
 /**
  * 分析実行ページ
@@ -50,6 +26,27 @@ const recentAnalyses = [
  */
 export default function AnalysisPage() {
   const { sidebarOpen } = useAppStore()
+  const [taskHistory, setTaskHistory] = useState<TaskHistory[]>([])
+
+  /** タスク履歴取得 */
+  useEffect(() => {
+    fetchAPI<{ tasks: TaskHistory[] }>('/api/v1/analysis/tasks?limit=10')
+      .then((data) => setTaskHistory(data.tasks))
+      .catch(() => {})
+  }, [])
+
+  const statusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'failed':
+        return <XCircle className="h-4 w-4 text-red-500" />
+      case 'running':
+        return <Loader2 className="h-4 w-4 animate-spin text-primary" />
+      default:
+        return <Clock className="h-4 w-4 text-muted-foreground" />
+    }
+  }
 
   return (
     <div
@@ -75,57 +72,45 @@ export default function AnalysisPage() {
       <AnalysisForm />
 
       {/* 分析履歴 */}
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <History className="h-5 w-5 text-primary" />
-          <h3 className="text-base font-semibold text-card-foreground">
-            最近の分析履歴
-          </h3>
-        </div>
+      {taskHistory.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" />
+            <h3 className="text-base font-semibold text-card-foreground">
+              分析タスク履歴
+            </h3>
+          </div>
 
-        <div className="space-y-3">
-          {recentAnalyses.map((analysis) => (
-            <div
-              key={analysis.id}
-              className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-accent/30 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className={`
-                    h-10 w-10 rounded-lg flex items-center justify-center text-sm font-bold
-                    ${
-                      analysis.score >= 80
-                        ? 'bg-risk-critical/10 text-risk-critical'
-                        : analysis.score >= 60
-                          ? 'bg-risk-high/10 text-risk-high'
-                          : analysis.score >= 40
-                            ? 'bg-risk-medium/10 text-risk-medium'
-                            : 'bg-risk-low/10 text-risk-low'
-                    }
-                  `}
-                >
-                  {analysis.score}
+          <div className="space-y-3">
+            {taskHistory.map((task) => (
+              <div
+                key={task.task_id}
+                className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-accent/30 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  {statusIcon(task.status)}
+                  <div>
+                    <p className="text-sm font-medium text-card-foreground">
+                      {task.company_count}社 - {task.engines.join(', ')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      FY{task.fiscal_year} | {task.result_count}件の結果
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-card-foreground">
-                    {analysis.companyName}
-                  </p>
+                <div className="text-right">
                   <p className="text-xs text-muted-foreground">
-                    {analysis.type}
+                    {new Date(task.created_at).toLocaleString('ja-JP')}
+                  </p>
+                  <p className="text-xs font-mono text-muted-foreground">
+                    {task.task_id.slice(0, 8)}...
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">{analysis.date}</p>
-                <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {analysis.duration}
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

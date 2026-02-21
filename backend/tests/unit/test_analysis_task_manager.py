@@ -112,8 +112,55 @@ class TestTaskManager:
         tasks = manager.list_tasks(limit=2)
         assert len(tasks) == 2
 
-    def test_run_analysis_with_demo_data(self) -> None:
-        """デモデータで分析実行."""
+    def _make_mock_provider(self) -> MagicMock:
+        """分析エンジン用のモックプロバイダーを作成."""
+        mock_provider = MagicMock()
+        mock_provider.get_entity_by_id.return_value = {"name": "テスト企業"}
+        mock_provider.get_risk_score_by_entity.return_value = {
+            "total_score": 50.0,
+        }
+        mock_provider.get_financial_statements_by_entity.return_value = [
+            {
+                "fiscal_year": 2024, "fiscal_quarter": 4,
+                "revenue": 1000000, "revenue_prior": 900000,
+                "cogs": 600000, "cogs_prior": 550000,
+                "receivables": 200000, "receivables_prior": 150000,
+                "total_assets": 5000000, "total_assets_prior": 4500000,
+                "current_assets": 2000000, "current_assets_prior": 1800000,
+                "ppe": 1500000, "ppe_prior": 1400000,
+                "net_income": 100000, "operating_cash_flow": 80000,
+                "total_equity": 2000000, "total_liabilities": 3000000,
+                "current_liabilities": 1000000, "long_term_debt": 1500000,
+                "sga": 250000, "sga_prior": 230000,
+                "depreciation": 100000, "depreciation_prior": 95000,
+                "inventory": 300000, "inventory_prior": 280000,
+                "retained_earnings": 1500000, "operating_income": 150000,
+            },
+            {
+                "fiscal_year": 2025, "fiscal_quarter": 4,
+                "revenue": 1100000, "revenue_prior": 1000000,
+                "cogs": 660000, "cogs_prior": 600000,
+                "receivables": 220000, "receivables_prior": 200000,
+                "total_assets": 5500000, "total_assets_prior": 5000000,
+                "current_assets": 2200000, "current_assets_prior": 2000000,
+                "ppe": 1600000, "ppe_prior": 1500000,
+                "net_income": 110000, "operating_cash_flow": 90000,
+                "total_equity": 2200000, "total_liabilities": 3300000,
+                "current_liabilities": 1100000, "long_term_debt": 1600000,
+                "sga": 270000, "sga_prior": 250000,
+                "depreciation": 110000, "depreciation_prior": 100000,
+                "inventory": 320000, "inventory_prior": 300000,
+                "retained_earnings": 1700000, "operating_income": 170000,
+            },
+        ]
+        mock_provider.get_journal_entries_by_entity.return_value = [
+            {"debit": 1000 + i * 100, "credit": 0, "account_code": "1100"}
+            for i in range(50)
+        ]
+        return mock_provider
+
+    def test_run_analysis_with_engines(self) -> None:
+        """分析エンジン統合テスト."""
         manager = TaskManager()
         task = manager.create_task(
             company_ids=["SUB001"],
@@ -121,18 +168,7 @@ class TestTaskManager:
             fiscal_quarter=4,
         )
 
-        mock_provider = MagicMock()
-        mock_provider.get_risk_score_by_entity.return_value = {
-            "entity_name": "テスト企業",
-            "total_score": 75.0,
-            "risk_level": "high",
-            "da_score": 70.0,
-            "fraud_score": 65.0,
-            "rule_score": 80.0,
-            "benford_score": 85.0,
-            "risk_factors": ["売掛金急増"],
-        }
-        mock_provider.get_entity_by_id.return_value = {"name": "テスト企業"}
+        mock_provider = self._make_mock_provider()
 
         with patch("cs_risk_agent.data.provider.get_data_provider", return_value=mock_provider):
             manager.run_analysis(task)
@@ -140,10 +176,16 @@ class TestTaskManager:
         assert task.status == TaskStatus.COMPLETED
         assert task.progress == 100
         assert len(task.results) == 1
-        assert task.results[0]["total_score"] == 75.0
+        result = task.results[0]
+        assert "total_score" in result
+        assert "risk_level" in result
+        assert result["risk_level"] in ("critical", "high", "medium", "low")
+        assert "rule_score" in result
+        assert "benford_score" in result
+        assert "engines_run" in result
 
-    def test_run_analysis_no_risk_score(self) -> None:
-        """リスクスコアなしの企業."""
+    def test_run_analysis_no_financial_data(self) -> None:
+        """財務データなしの企業."""
         manager = TaskManager()
         task = manager.create_task(
             company_ids=["NEW001"],
@@ -152,8 +194,10 @@ class TestTaskManager:
         )
 
         mock_provider = MagicMock()
-        mock_provider.get_risk_score_by_entity.return_value = None
         mock_provider.get_entity_by_id.return_value = {"name": "新規企業"}
+        mock_provider.get_risk_score_by_entity.return_value = None
+        mock_provider.get_financial_statements_by_entity.return_value = []
+        mock_provider.get_journal_entries_by_entity.return_value = []
 
         with patch("cs_risk_agent.data.provider.get_data_provider", return_value=mock_provider):
             manager.run_analysis(task)
@@ -187,18 +231,7 @@ class TestTaskManager:
             fiscal_quarter=4,
         )
 
-        mock_provider = MagicMock()
-        mock_provider.get_risk_score_by_entity.return_value = {
-            "entity_name": "企業",
-            "total_score": 50.0,
-            "risk_level": "medium",
-            "da_score": 45.0,
-            "fraud_score": 40.0,
-            "rule_score": 55.0,
-            "benford_score": 60.0,
-            "risk_factors": [],
-        }
-        mock_provider.get_entity_by_id.return_value = {"name": "企業"}
+        mock_provider = self._make_mock_provider()
 
         with patch("cs_risk_agent.data.provider.get_data_provider", return_value=mock_provider):
             manager.run_analysis(task)

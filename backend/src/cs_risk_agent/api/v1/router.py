@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from cs_risk_agent.api.v1.admin import router as admin_router
+from cs_risk_agent.api.v1.auth import router as auth_router
 from cs_risk_agent.api.v1.ai_insights import router as ai_insights_router
 from cs_risk_agent.api.v1.analysis import router as analysis_router
 from cs_risk_agent.api.v1.companies import router as companies_router
@@ -14,6 +15,13 @@ from cs_risk_agent.api.v1.reports import router as reports_router
 from cs_risk_agent.api.v1.risk_scores import router as risk_scores_router
 
 api_router = APIRouter()
+
+# 認証（認証不要）
+api_router.include_router(
+    auth_router,
+    prefix="/auth",
+    tags=["auth"],
+)
 
 # ヘルスチェック（認証不要）
 api_router.include_router(
